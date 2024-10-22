@@ -2,6 +2,7 @@
 #define CLIENTPARSER_H
 #include <string>
 #include <vector>
+#include <sstream>
 
 class clientParser
 {
