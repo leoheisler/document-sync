@@ -1,0 +1,2 @@
+this module will take the responsability of comunicationg changes
+between the server and client aplications, using the socket API

@@ -1,0 +1,5 @@
+#compiled object files
+*.o
+*.out
+*.exe
+/build
