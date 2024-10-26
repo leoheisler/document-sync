@@ -1,25 +1,40 @@
 #include "clientParser.h" 
+#include "commandStatus.h"
 
 #include <iostream>
 class myClient
 {
+    private:
+        void checkCommandStatus(CommandStatus status){
+            switch (status) {
+                case CommandStatus::VALID:
+                    break;
+                case CommandStatus::INVALID_COMMAND:
+                    std::cout << "Invalid command.\n";
+                    break;
+                case CommandStatus::TOO_MANY_ARGS:
+                    std::cout << "Too many arguments.\n";
+                    break;
+                case CommandStatus::TOO_FEW_ARGS:
+                    std::cout << "Too few arguments.\n";
+                    break;
+            }
+        }
+
     public:
         myClient(/* args */){};
         void start(int argc, char* argv[]){
         
             clientParser parser;
             std::string responseString,commandString;
-            bool exit = false;
+            CommandStatus commandStatus;
+            bool exit = false;     
 
-            responseString = parser.verifyClientCommand(argc,argv);
+            commandStatus = parser.verifyClientCommand(argc,argv);
             do{
-                if (responseString == "ok"){
-                    /* code */
-                }else{
-                    std::cout<<responseString;
-                }
+                checkCommandStatus(commandStatus);
                 std::cin >> commandString;
-                responseString = parser.verifyClientCommand(commandString);
+                commandStatus = parser.verifyClientCommand(commandString);
             }while(!exit);
     
         }

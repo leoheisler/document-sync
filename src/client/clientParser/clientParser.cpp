@@ -1,5 +1,5 @@
-
 #include "clientParser.h" 
+#include "commandStatus.h"
 
 //CONSTRUCTOR
 clientParser::clientParser(/* args */){};
@@ -20,20 +20,21 @@ std::vector<std::string> clientParser::commandSplit(const std::string& str, char
 
 
 //PUBLIC FUNCTIONS
-std::string clientParser::verifyClientCommand(int argc, char* argv[]){
-    std::string returnString;
+CommandStatus clientParser::verifyClientCommand(int argc, char* argv[]){
+    CommandStatus status;
+
     if(argc == 3){
-        returnString = "ok";
+        status = CommandStatus::VALID;
     }else if(argc < 3){
-        returnString = "too few arguments\n";
+        status = CommandStatus::TOO_MANY_ARGS;
     }else if(argc > 3){
-        returnString = "too many arguments\n";
+        status = CommandStatus::TOO_MANY_ARGS;
     }
 
-    return returnString;
+    return status;
 }
 
-std::string clientParser::verifyClientCommand(std::string command){
+CommandStatus clientParser::verifyClientCommand(std::string command){
     std::vector<std::string> comArgs = commandSplit(command,' ');
     std::string comm = comArgs[0];
     
@@ -42,31 +43,25 @@ std::string clientParser::verifyClientCommand(std::string command){
         comm != "get_sync_dir" && comm != "exit" &&
         comm != "download" && comm != "upload" &&
         comm != "delete") {
-        return "Invalid command.\n";
+        return CommandStatus::INVALID_COMMAND;
     }
 
     // verify if the command has too many arguments
     if (comArgs.size() > 2) {
-        return "Too many arguments.\n";
+        return CommandStatus::TOO_MANY_ARGS;
     }
 
     // verify if the command has just one argument besides the function
     if ((comm == "download" || comm == "upload" || comm == "delete") && comArgs.size() < 2) {
-        return "Too few arguments.\n";
+        return CommandStatus::TOO_MANY_ARGS;
     }
 
     // verify single commands
     if ((comm == "list_server" || comm == "list_client" || 
          comm == "get_sync_dir" || comm == "exit") && 
          comArgs.size() > 1) {
-        return "Too many arguments.\n";
+        return CommandStatus::TOO_MANY_ARGS;
     }
 
-    return "ok";
-   
+    return CommandStatus::VALID;
 }
-
-
-
-
-
