@@ -31,3 +31,10 @@ else()
     add_executable(myClient ${SOURCES})
 endif()
 
+# Adiciona o target personalizado 'run' para compilar e executar o projeto
+add_custom_target(run
+    COMMAND myClient
+    DEPENDS myClient
+    WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
+    COMMENT "Building and running myClient"
+)

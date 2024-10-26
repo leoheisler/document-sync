@@ -1,24 +1,12 @@
 
 #include "clientParser.h" 
 
-class clientParser
-{
-private:
-    std::vector<std::string> commandSplit(const std::string& str, char delimiter);
-
-public:
-    //constructor
-    clientParser(/* args */);
-
-    //command verification functions
-    std::string verifyClientCommand(int argc, char* argv[]);
-    std::string verifyClientCommand(std::string command);
-};
 //CONSTRUCTOR
 clientParser::clientParser(/* args */){};
 
+
 //PRIVATE FUNCTIONS
-std::vector<std::string> commandSplit(const std::string& str, char delimiter) {
+std::vector<std::string> clientParser::commandSplit(const std::string& str, char delimiter) {
     std::vector<std::string> tokens;
     std::istringstream tokenStream(str);
     std::string token;
@@ -37,9 +25,9 @@ std::string clientParser::verifyClientCommand(int argc, char* argv[]){
     if(argc == 3){
         returnString = "ok";
     }else if(argc < 3){
-        returnString = "too few arguments";
+        returnString = "too few arguments\n";
     }else if(argc > 3){
-        returnString = "too many arguments";
+        returnString = "too many arguments\n";
     }
 
     return returnString;
@@ -54,24 +42,24 @@ std::string clientParser::verifyClientCommand(std::string command){
         comm != "get_sync_dir" && comm != "exit" &&
         comm != "download" && comm != "upload" &&
         comm != "delete") {
-        return "Invalid command.";
+        return "Invalid command.\n";
     }
 
     // verify if the command has too many arguments
     if (comArgs.size() > 2) {
-        return "Too many arguments.";
+        return "Too many arguments.\n";
     }
 
     // verify if the command has just one argument besides the function
     if ((comm == "download" || comm == "upload" || comm == "delete") && comArgs.size() < 2) {
-        return "Too few arguments.";
+        return "Too few arguments.\n";
     }
 
     // verify single commands
     if ((comm == "list_server" || comm == "list_client" || 
          comm == "get_sync_dir" || comm == "exit") && 
          comArgs.size() > 1) {
-        return "Too many arguments.";
+        return "Too many arguments.\n";
     }
 
     return "ok";

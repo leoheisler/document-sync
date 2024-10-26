@@ -8,3 +8,17 @@ To achieve this, this project makes use of:
 - Processes;
 - Communication using sockets;
 - Process synchronization using mutexes and semaphores.
+
+## Build Tutorial
+To build and run this project, you can choose one of the following options:
+
+### Option 1: Execute the Build Script
+1. Navigate to the project root directory;
+2. Make the script executable by running 'chmod +x build.sh';
+3. Execute the script './build.sh'.
+
+### Option 2: Execute the commands manually
+1. Navigate to the project root directory;
+2. Create the build directory if it doesn't exist with 'mkdir -p build';
+3. Navigate to the build directory and build the project with 'cd build ; cmake ..';
+4. Run the project and return to the root directory with 'make run ; cd ..'.
