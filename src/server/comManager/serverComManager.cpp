@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include "serverComManager.h" 
+#include "packet.h"
 
 #define PORT 4000
 
@@ -48,17 +49,6 @@ int serverComManager::connectServerToClient(int argc, char* argv[])
 		printf("ERROR on accept");
 	
 	bzero(buffer, 256);
-	
-	/* read from the socket */
-	n = read(newsockfd, buffer, 256);
-	if (n < 0) 
-		printf("ERROR reading from socket");
-	printf("Here is the message: %s\n", buffer);
-	
-	/* write in the socket */ 
-	n = write(newsockfd,"I got your message", 18);
-	if (n < 0) 
-		printf("ERROR writing to socket");
 
 	close(newsockfd);
 	close(sockfd);

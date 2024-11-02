@@ -5,11 +5,10 @@
 #include "clientParser.h" 
 #include "commandStatus.h"
 
-#define PORT 4000
-
 class client
 {
     private:
+        std::string username;
         void checkCommandStatus(CommandStatus status){
             switch (status) {
                 case CommandStatus::VALID:
