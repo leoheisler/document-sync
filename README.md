@@ -20,5 +20,9 @@ To build and run this project, you can choose one of the following options:
 ### Option 2: Execute the commands manually
 1. Navigate to the project root directory;
 2. Create the build directory if it doesn't exist with 'mkdir -p build';
-3. Navigate to the build directory and build the project with 'cd build ; cmake ..';
-4. Run the project and return to the root directory with 'make run ; cd ..'.
+3. Navigate to the build directory and build the project with 'cd build ; cmake ..; make'
+
+### Running the project
+1. Navigate to the build directory
+2. FOR CLIENT: Execute './myClient <'username'> <'server_ip_address'> <'port'>'
+   FOR SERVER: Execute './myServer'
