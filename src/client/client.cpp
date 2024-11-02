@@ -1,7 +1,17 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
+#include <iostream>
 #include "clientParser.h" 
 #include "commandStatus.h"
 
-#include <iostream>
+#define PORT 4000
+
 class client
 {
     private:
@@ -24,7 +34,6 @@ class client
     public:
         client(/* args */){};
         void start(int argc, char* argv[]){
-        
             clientParser parser;
             std::string responseString,commandString;
             CommandStatus commandStatus;
