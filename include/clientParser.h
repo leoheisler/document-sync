@@ -11,10 +11,11 @@ class clientParser
         std::string command;
         std::vector<std::string> commandSplit(const std::string& str, char delimiter);
     public:
-        // Constructor
+        // Constructor Method
         clientParser(/* args */);
 
-        // Command Verification Method
+        // Command Methods
         CommandStatus verifyClientCommand(std::string command);
+        bool executeCommand(std::string command);
 };
 #endif

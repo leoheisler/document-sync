@@ -7,12 +7,18 @@
 class clientComManager
 {
     private: 
-        // empty
+        std::string username;
     public:
-        // Constructor Methods
+        // Constructor Method
         clientComManager(/* args */);
 
         // Communication Methods
         int connectClientToServer(int argc, char* argv[]);
+        void getSyncDir();
+
+        // Getters & Setters
+        std::string getUserName();
+        void setUserName(std::string username);
+
 };
 #endif

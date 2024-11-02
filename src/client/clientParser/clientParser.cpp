@@ -1,17 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h> 
 #include <iostream>
 
 #include "clientParser.h" 
 #include "commandStatus.h"
-
-#define PORT 4000
 
 // CONSTRUCTOR
 clientParser::clientParser(/* args */){};
@@ -60,5 +53,6 @@ CommandStatus clientParser::verifyClientCommand(std::string command){
         return CommandStatus::TOO_MANY_ARGS;
     }
 
+    this->command = command;
     return CommandStatus::VALID;
 }
