@@ -49,6 +49,9 @@ int serverComManager::connectServerToClient(int argc, char* argv[])
 		printf("ERROR on accept");
 	
 	bzero(buffer, 256);
+	
+	Packet received_packet = Packet::receive_packet(newsockfd);
+	printf("%s\n", received_packet.getPayload()); // No need for c_str() since it returns char*
 
 	close(newsockfd);
 	close(sockfd);
