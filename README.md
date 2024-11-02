@@ -24,5 +24,5 @@ To build and run this project, you can choose one of the following options:
 
 ### Running the project
 1. Navigate to the build directory
-2. FOR CLIENT: Execute './myClient <'username'> <'server_ip_address'> <'port'>'
+2. FOR CLIENT: Execute './myClient <'username'> <'server_ip_address'> <'port'>'<br>
    FOR SERVER: Execute './myServer'
