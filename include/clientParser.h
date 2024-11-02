@@ -7,15 +7,14 @@
 
 class clientParser
 {
-private: 
-    std::string command;
-    std::vector<std::string> commandSplit(const std::string& str, char delimiter);
-public:
-    //constructor
-    clientParser(/* args */);
+    private: 
+        std::string command;
+        std::vector<std::string> commandSplit(const std::string& str, char delimiter);
+    public:
+        // Constructor
+        clientParser(/* args */);
 
-    //command verification functions
-    int verifyClientCommand(int argc, char* argv[]);
-    CommandStatus verifyClientCommand(std::string command);
+        // Command Verification Method
+        CommandStatus verifyClientCommand(std::string command);
 };
 #endif

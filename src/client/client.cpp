@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
+#include "comManager.h"
 #include "clientParser.h" 
 #include "commandStatus.h"
 
@@ -29,11 +30,12 @@ class client
         client(/* args */){};
         void start(int argc, char* argv[]){
             clientParser parser;
+            comManager communicationManager;
             std::string responseString,commandString;
             CommandStatus commandStatus;
             bool exit = false;     
 
-            parser.verifyClientCommand(argc,argv);
+            communicationManager.connectClientToServer(argc,argv);
             do{
                 checkCommandStatus(commandStatus);
                 std::cin >> commandString;
