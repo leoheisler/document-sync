@@ -15,7 +15,7 @@ public:
     clientParser(/* args */);
 
     //command verification functions
-    CommandStatus verifyClientCommand(int argc, char* argv[]);
+    int verifyClientCommand(int argc, char* argv[]);
     CommandStatus verifyClientCommand(std::string command);
 };
 #endif

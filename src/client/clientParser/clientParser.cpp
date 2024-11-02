@@ -1,5 +1,16 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
+#include <iostream>
 #include "clientParser.h" 
 #include "commandStatus.h"
+
+#define PORT 4000
 
 //CONSTRUCTOR
 clientParser::clientParser(/* args */){};
@@ -20,7 +31,7 @@ std::vector<std::string> clientParser::commandSplit(const std::string& str, char
 
 
 //PUBLIC FUNCTIONS
-CommandStatus clientParser::verifyClientCommand(int argc, char* argv[]){
+int clientParser::verifyClientCommand(int argc, char* argv[]){
     int sockfd, n;
     struct sockaddr_in serv_addr;
     struct hostent *server;

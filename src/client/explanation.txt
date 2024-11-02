@@ -1,6 +1,0 @@
-this module will contain our main client aplication,
-the client parser and the client object.
-client_obj:
--syncMod
--clientParser
--comMenagement

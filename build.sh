@@ -7,4 +7,4 @@ mkdir -p build
 cd build ; cmake ..
 
 # Run the project
-make run ; cd ..
+make; cd ..

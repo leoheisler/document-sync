@@ -1,11 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h> 
 #include <iostream>
 #include "clientParser.h" 
 #include "commandStatus.h"
@@ -39,7 +33,7 @@ class client
             CommandStatus commandStatus;
             bool exit = false;     
 
-            commandStatus = parser.verifyClientCommand(argc,argv);
+            parser.verifyClientCommand(argc,argv);
             do{
                 checkCommandStatus(commandStatus);
                 std::cin >> commandString;
