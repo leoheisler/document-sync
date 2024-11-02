@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include "comManager.h"
+#include "clientComManager.h"
 #include "clientParser.h" 
 #include "commandStatus.h"
 
@@ -30,7 +30,7 @@ class client
         client(/* args */){};
         void start(int argc, char* argv[]){
             clientParser parser;
-            comManager communicationManager;
+            clientComManager communicationManager;
             std::string responseString,commandString;
             CommandStatus commandStatus;
             bool exit = false;     

@@ -1,16 +1,16 @@
-#ifndef COMMANAGER_H
-#define COMMANAGER_H
+#ifndef CLIENTCOMMANAGER_H
+#define CLIENTCOMMANAGER_H
 #include <string>
 #include <vector>
 #include <sstream>
 
-class comManager
+class clientComManager
 {
     private: 
         // empty
     public:
         // Constructor Methods
-        comManager(/* args */);
+        clientComManager(/* args */);
 
         // Communication Methods
         int connectClientToServer(int argc, char* argv[]);

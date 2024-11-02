@@ -5,21 +5,23 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netdb.h> 
 #include <iostream>
 
-#include "comManager.h" 
+#include "clientComManager.h" 
 #include "commandStatus.h"
 
 #define PORT 4000
 
 // CONSTRUCTOR
-comManager::comManager(/* args */){};
+clientComManager::clientComManager(/* args */){};
 
 // PRIVATE METHODS
 
 // PUBLIC METHODS
-int comManager::connectClientToServer(int argc, char* argv[]){
+int clientComManager::connectClientToServer(int argc, char* argv[])
+{
     int sockfd, n;
     struct sockaddr_in serv_addr;
     struct hostent *server;
@@ -36,6 +38,7 @@ int comManager::connectClientToServer(int argc, char* argv[]){
         exit(0);
     }
     
+    // SOCKET
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
         printf("ERROR opening socket\n");
     
@@ -44,7 +47,7 @@ int comManager::connectClientToServer(int argc, char* argv[]){
 	serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
 	bzero(&(serv_addr.sin_zero), 8);     
 	
-    
+    // CONNECT
 	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         printf("ERROR connecting\n");
 

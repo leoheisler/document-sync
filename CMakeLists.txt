@@ -19,6 +19,7 @@ file(GLOB_RECURSE MY_CLIENT_SOURCES
 
 file(GLOB_RECURSE MY_SERVER_SOURCES
     src/server/server.cpp
+    src/server/**/*cpp
 )
 
 # Verifica se as variáveis de fonte estão vazias
