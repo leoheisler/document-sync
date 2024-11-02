@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
+#include <unistd.h>
 #include <sys/socket.h>
 
 #define MAX_PAYLOAD_SIZE 1024
@@ -47,7 +48,16 @@ class Packet {
             memcpy(stream + offset, _payload, length);
 
             // Sending the stream (packet headers and data) to the specified socket
-            send(socket, stream, PACKET_SIZE, 0);
+            long int bytes_sent = write(socket, stream, PACKET_SIZE);
+
+            // Check if the send was successful
+            if (bytes_sent < 0) {
+                perror("ERROR sending packet"); // Print error message if send failed
+            } else if (bytes_sent < PACKET_SIZE) {
+                printf("Warning: Only %zd out of %d bytes sent\n", bytes_sent, PACKET_SIZE);
+            } else {
+                printf("Packet sent successfully: %zd bytes\n", bytes_sent);
+            }
             free(stream);
         }
 
@@ -59,11 +69,14 @@ class Packet {
             char* stream = (char*)malloc(PACKET_SIZE);
 
             // Receiving the stream (packet headers and data) from the specified socket
-            int bytesReceived = recv(socket, stream, PACKET_SIZE, 0);
-            printf("%d", bytesReceived);
-            if(bytesReceived <= 0){
-                printf("Error receiving packet.");
+            long int bytes_received = read(socket, stream, PACKET_SIZE);
+            if(bytes_received <= 0){
+                printf("Error receiving packet.\n");
                 return Packet(0, 0, 0, ""); // Return an empty packet on error
+            }else if (bytes_received < PACKET_SIZE) {
+                printf("Warning: Only %zd out of %d bytes received\n", bytes_received, PACKET_SIZE);
+            } else {
+                printf("Packet received successfully: %zd bytes\n", bytes_received);
             }
 
             // Remounting Packet from stream data

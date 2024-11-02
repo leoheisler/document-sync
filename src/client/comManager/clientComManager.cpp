@@ -52,7 +52,6 @@ int clientComManager::connectClientToServer(int argc, char* argv[])
 
     Packet test_packet(1,1,1,"Hello World!");
     test_packet.send_packet(sockfd);
-    printf("Packet sent");
     
 	close(sockfd);
     return 0;
