@@ -12,27 +12,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include_directories(include)
 
 # Adiciona os arquivos de origem
-file(GLOB_RECURSE CLIENT_PARSER_SOURCES 
-    src/client/clientParser/clientParser.cpp
-)
-
 file(GLOB_RECURSE MY_CLIENT_SOURCES
     src/client/client.cpp
+    src/client/**/*cpp
 )
 
 file(GLOB_RECURSE MY_SERVER_SOURCES
     src/server/server.cpp
+    src/server/**/*cpp
 )
 
 # Verifica se as variáveis de fonte estão vazias
-if(NOT CLIENT_PARSER_SOURCES OR NOT MY_CLIENT_SOURCES OR NOT MY_SERVER_SOURCES)
+if(NOT MY_CLIENT_SOURCES OR NOT MY_SERVER_SOURCES)
     message(FATAL_ERROR "No source files found. Check the paths.")
 else()
-    # Combina todas as fontes
-    set(SOURCES ${CLIENT_PARSER_SOURCES} ${MY_CLIENT_SOURCES})
-
     # Cria o executável
-    add_executable(myClient ${SOURCES})
+    add_executable(myClient ${MY_CLIENT_SOURCES})
     add_executable(myServer ${MY_SERVER_SOURCES})
 endif()
 
