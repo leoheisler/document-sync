@@ -1,1 +1,0 @@
-this module will be responsible for synchronizing the server and clients

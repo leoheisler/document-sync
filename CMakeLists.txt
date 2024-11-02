@@ -17,7 +17,7 @@ file(GLOB_RECURSE CLIENT_PARSER_SOURCES
 )
 
 file(GLOB_RECURSE MY_CLIENT_SOURCES
-    src/client/myClient/myClient.cpp
+    src/client/client.cpp
 )
 
 # Verifica se as variáveis de fonte estão vazias

@@ -1,1 +1,0 @@
-this will be our aplication synchronized directory

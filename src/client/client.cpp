@@ -2,7 +2,7 @@
 #include "commandStatus.h"
 
 #include <iostream>
-class myClient
+class client
 {
     private:
         void checkCommandStatus(CommandStatus status){
@@ -22,7 +22,7 @@ class myClient
         }
 
     public:
-        myClient(/* args */){};
+        client(/* args */){};
         void start(int argc, char* argv[]){
         
             clientParser parser;
@@ -41,7 +41,7 @@ class myClient
 };
 
 int main(int argc, char* argv[]){
-    myClient client;
+    client client;
     client.start(argc,argv);   
 }
 
