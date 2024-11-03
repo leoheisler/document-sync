@@ -12,6 +12,7 @@
 #include "clientComManager.h" 
 #include "commandStatus.h"
 #include "packet.h"
+#include "fileTransfer.h"
 
 using namespace std;
 
@@ -50,8 +51,14 @@ int clientComManager::connectClientToServer(int argc, char* argv[])
 	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         printf("ERROR connecting\n");
 
-    Packet test_packet(1,1,1,"Hello World!");
-    test_packet.send_packet(sockfd);
+    //Packet test_packet(1,1,1,"Hello World!");
+    //test_packet.send_packet(sockfd);
+
+
+    //SEND THE FILE
+    std::string file_path = "../src/client/syncDir/teste.jpeg";
+    FileTransfer::send_file(file_path, sockfd);
+
     
 	close(sockfd);
     return 0;

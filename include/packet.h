@@ -10,6 +10,8 @@
 
 #define MAX_PAYLOAD_SIZE 1024
 
+class FileTransfer; // Forward declaration
+
 using namespace std;
 
 class Packet {
@@ -102,6 +104,9 @@ class Packet {
         char* getPayload(){
             return _payload;
         }
+
+    // Declare FileTransfer as a friend class
+    friend class FileTransfer; 
 };
 
 #endif

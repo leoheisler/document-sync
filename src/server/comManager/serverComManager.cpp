@@ -11,6 +11,7 @@
 
 #include "serverComManager.h" 
 #include "packet.h"
+#include "fileTransfer.h"
 
 #define PORT 4000
 
@@ -23,6 +24,8 @@ serverComManager::serverComManager(/* args */){};
 int serverComManager::connectServerToClient(int argc, char* argv[])
 {
 	int sockfd, newsockfd, n;
+	//sockfd is the listening socket for accepting new connections.
+	//newsockfd is a separate socket used for actual communication with the connected client.
 	socklen_t clilen;
 	char buffer[256];
 	struct sockaddr_in serv_addr, cli_addr;
@@ -50,8 +53,30 @@ int serverComManager::connectServerToClient(int argc, char* argv[])
 	
 	bzero(buffer, 256);
 	
-	Packet received_packet = Packet::receive_packet(newsockfd);
-	printf("%s\n", received_packet.getPayload()); // No need for c_str() since it returns char*
+	//Packet received_packet = Packet::receive_packet(newsockfd);
+	//printf("%s\n", received_packet.getPayload()); // No need for c_str() since it returns char*
+
+
+	// Receive the file
+    std::string output_file_path ="../src/server/syncDir/teste.jpeg";
+    FileTransfer::receive_file(output_file_path, newsockfd);
+
+	// Open the received file and print its contents
+    std::ifstream file(output_file_path);
+    if (!file.is_open()) {
+        std::cerr << "ERROR opening file: " << output_file_path << std::endl;
+        return -1; // Exit with error code
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        std::cout << line << std::endl; // Print each line to the terminal
+    }
+
+    file.close(); // Close the file
+
+
+
 
 	close(newsockfd);
 	close(sockfd);
