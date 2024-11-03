@@ -22,15 +22,19 @@ class Packet {
         uint16_t length;                   // Payload length
         char _payload[MAX_PAYLOAD_SIZE];   // Packet data
 
-    public:
+    //public:
         // Constant for total packet size in bytes
         static const int PACKET_SIZE = sizeof(type) + sizeof(seqn) + sizeof(total_size) + sizeof(length) + MAX_PAYLOAD_SIZE;
 
         // Packet Constructor Method
-        Packet(uint16_t t, uint16_t s, uint32_t ts, const char* payload) 
-            : type(t), seqn(s), total_size(ts), length(min(static_cast<int>(strlen(payload)), MAX_PAYLOAD_SIZE)) {
+        Packet(uint16_t t, uint16_t s, uint32_t ts, const char* payload,  uint16_t payload_length) 
+            //: type(t), seqn(s), total_size(ts), length(min(static_cast<int>(strlen(payload)), MAX_PAYLOAD_SIZE)) {
+            : type(t), seqn(s), total_size(ts), length(min(static_cast<int>(payload_length), MAX_PAYLOAD_SIZE)) {
             strncpy(_payload, payload, length); 
-            _payload[length] = '\0'; // Ensure null termination
+            //_payload[length] = '\0'; // Ensure null termination
+            if (length < MAX_PAYLOAD_SIZE) {
+                _payload[length] = '\0'; // Ensure null termination
+            }
         }
 
         // Send packet method
@@ -60,25 +64,45 @@ class Packet {
             } else {
                 printf("Packet sent successfully: %zd bytes\n", bytes_sent);
             }
+
+            // Print packet length to terminal
+            printf("Packet length sent: %d\n", length);
+
             free(stream);
+            clear(); // Clear the payload after sending
+
         }
 
-        // Método para receber o pacote
+        // Method to receive a packet
         static Packet receive_packet(int socket) {
             uint16_t type, seqn, length;
             uint32_t total_size;
             char payload[MAX_PAYLOAD_SIZE];
+            
+            // Allocate memory for receiving the full packet
             char* stream = (char*)malloc(PACKET_SIZE);
+            if (!stream) {
+                printf("Error: Failed to allocate memory for receiving packet.\n");
+                return Packet(0, 0, 0, "",0); // Return empty packet on memory allocation error
+            }
 
-            // Receiving the stream (packet headers and data) from the specified socket
+            // Receiving the stream (packet headers and data) from the socket
             long int bytes_received = read(socket, stream, PACKET_SIZE);
-            if(bytes_received <= 0){
+            if (bytes_received <= 0) {
                 printf("Error receiving packet.\n");
-                return Packet(0, 0, 0, ""); // Return an empty packet on error
-            }else if (bytes_received < PACKET_SIZE) {
+                free(stream);  // Free memory before returning
+                return Packet(0, 0, 0, "",0); // Return empty packet on read error
+            } else if (bytes_received < PACKET_SIZE) {
                 printf("Warning: Only %zd out of %d bytes received\n", bytes_received, PACKET_SIZE);
             } else {
                 printf("Packet received successfully: %zd bytes\n", bytes_received);
+            }
+
+            // Check if the received data is enough to fill headers
+            if (bytes_received < sizeof(type) + sizeof(seqn) + sizeof(total_size) + sizeof(length)) {
+                printf("Error: Incomplete header received.\n");
+                free(stream);
+                return Packet(0, 0, 0, "",0); // Return empty packet on incomplete header
             }
 
             // Remounting Packet from stream data
@@ -91,18 +115,42 @@ class Packet {
             offset += sizeof(total_size);
             memcpy(&length, stream + offset, sizeof(length));
             offset += sizeof(length);
-            memcpy(payload, stream+offset, MAX_PAYLOAD_SIZE);
 
-            Packet pkt(type, seqn, total_size, payload);
-            free(stream);
+            // Ensure length is within bounds to prevent buffer overflow
+            if (length > MAX_PAYLOAD_SIZE) {
+                printf("Error: Payload length %d exceeds maximum allowed size %d.\n", length, MAX_PAYLOAD_SIZE);
+                free(stream);
+                return Packet(0, 0, 0, "",0); // Return empty packet if length is invalid
+            }
 
-            return pkt;
+            // Copy payload data based on specified length
+            memcpy(payload, stream + offset, length);
+
+            // Print packet length to terminal
+            printf("Packet length when received: %d\n", length);
+            
+
+            Packet packet(type, seqn, total_size, payload, length);
+
+            // Print packet length to terminal
+            printf("Packet length when received: %d\n", packet.getLength());
+            free(stream); // Free allocated memory after use
+
+            return packet;
         }
 
 
         // Getters & Setters
         char* getPayload(){
             return _payload;
+        }
+
+        uint16_t getLength(){
+            return length;
+        }
+
+        void clear() {
+            std::memset(_payload, 0, MAX_PAYLOAD_SIZE); // Clear payload
         }
 
     // Declare FileTransfer as a friend class
