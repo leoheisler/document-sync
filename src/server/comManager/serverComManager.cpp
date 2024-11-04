@@ -57,18 +57,6 @@ int serverComManager::connectServerToClient(int argc, char* argv[])
     std::string output_file_path ="../src/server/syncDir/test.mp4";
     FileTransfer::receive_file(output_file_path, newsockfd);
 
-	// Open the received file and print its contents
-    std::ifstream file(output_file_path);
-    if (!file.is_open()) {
-        std::cerr << "ERROR opening file: " << output_file_path << std::endl;
-        return -1; // Exit with error code
-    }
-
-    file.close(); // Close the file
-
-
-
-
 	close(newsockfd);
 	close(sockfd);
 	return 0; 

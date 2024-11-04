@@ -74,8 +74,7 @@ class Packet {
                 total_bytes_sent += bytes_sent;
             }while(total_bytes_sent < PACKET_SIZE);
 
-            // Print packet length to terminal
-            printf("Packet length sent: %d\n", length);
+            // printf("Packet length sent: %d\n", length);
 
             free(stream);
             clear(); 
@@ -106,13 +105,6 @@ class Packet {
                 total_bytes_received += bytes_received;
             }while(total_bytes_received < PACKET_SIZE);
 
-            // Check if the received data is enough to fill headers
-            if (bytes_received < sizeof(type) + sizeof(seqn) + sizeof(total_size) + sizeof(length)) {
-                printf("Error: Incomplete header received.\n");
-                free(stream);
-                return Packet(); 
-            }
-
             // Remounting Packet from stream data
             size_t offset = 0;
             memcpy(&type, stream + offset, sizeof(type));
@@ -126,15 +118,15 @@ class Packet {
 
             // Ensure length is within bounds to prevent buffer overflow
             if (length > MAX_PAYLOAD_SIZE) {
-                //printf("Error: Payload length %d exceeds maximum allowed size %d.\n", length, MAX_PAYLOAD_SIZE);
+                printf("Error: Payload length %d exceeds maximum allowed size %d.\n", length, MAX_PAYLOAD_SIZE);
                 free(stream);
                 return Packet(); // Return empty packet if length is invalid
             }
             memcpy(payload, stream + offset, length);            
 
             Packet packet(type, seqn, total_size, payload, length);
-
             //printf("Packet length received: %d\n", packet.getLength());
+            
             free(stream); // Free allocated memory after use
 
             return packet;

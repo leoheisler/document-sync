@@ -30,7 +30,7 @@ class FileTransfer {
                 Packet packet(Packet::DATA_PACKET, seq_num++, total_packets, buffer, payload_size);
                 packet.send_packet(socket);
                 std::memset(buffer, 0, MAX_PAYLOAD_SIZE); 
-                printf("Packet length file sent: %d\n", packet.getLength());
+                //printf("Packet length file sent: %d\n", packet.getLength());
                 file.read(buffer, MAX_PAYLOAD_SIZE);
             }
 
