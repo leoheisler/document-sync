@@ -53,10 +53,6 @@ int serverComManager::connectServerToClient(int argc, char* argv[])
 	
 	bzero(buffer, 256);
 	
-	//Packet received_packet = Packet::receive_packet(newsockfd);
-	//printf("%s\n", received_packet.getPayload()); // No need for c_str() since it returns char*
-
-
 	// Receive the file
     std::string output_file_path ="../src/server/syncDir/teste.jpeg";
     FileTransfer::receive_file(output_file_path, newsockfd);

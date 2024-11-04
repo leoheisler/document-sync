@@ -22,22 +22,25 @@ class Packet {
         uint16_t length;                   // Payload length
         char _payload[MAX_PAYLOAD_SIZE];   // Packet data
 
-    //public:
+    public:
+        // Enum to define packet types
+        enum PacketType {
+            ERR = 0x0000,
+            DATA_PACKET = 0x0001,
+            CMD_PACKET = 0x0002,
+        };
+
         // Constant for total packet size in bytes
         static const int PACKET_SIZE = sizeof(type) + sizeof(seqn) + sizeof(total_size) + sizeof(length) + MAX_PAYLOAD_SIZE;
 
-        // Packet Constructor Method
+        // Packet Constructors Methods
         Packet(uint16_t t, uint16_t s, uint32_t ts, const char* payload,  uint16_t payload_length) 
-            //: type(t), seqn(s), total_size(ts), length(min(static_cast<int>(strlen(payload)), MAX_PAYLOAD_SIZE)) {
             : type(t), seqn(s), total_size(ts), length(min(static_cast<int>(payload_length), MAX_PAYLOAD_SIZE)) {
-            strncpy(_payload, payload, length); 
-            //_payload[length] = '\0'; // Ensure null termination
-            if (length < MAX_PAYLOAD_SIZE) {
-                _payload[length] = '\0'; // Ensure null termination
-            }
+            memcpy(_payload, payload, length); 
         }
+        Packet() : type(ERR), seqn(0), total_size(0), length(0) {};
 
-        // Send packet method
+        // Packet Transmission Methods
         void send_packet(int socket) {
             char* stream = (char*)malloc(PACKET_SIZE);
             size_t offset = 0;
@@ -58,7 +61,7 @@ class Packet {
 
             // Check if the send was successful
             if (bytes_sent < 0) {
-                perror("ERROR sending packet"); // Print error message if send failed
+                perror("ERROR sending packet"); 
             } else if (bytes_sent < PACKET_SIZE) {
                 printf("Warning: Only %zd out of %d bytes sent\n", bytes_sent, PACKET_SIZE);
             } else {
@@ -69,11 +72,10 @@ class Packet {
             printf("Packet length sent: %d\n", length);
 
             free(stream);
-            clear(); // Clear the payload after sending
-
+            clear(); 
+            return;
         }
 
-        // Method to receive a packet
         static Packet receive_packet(int socket) {
             uint16_t type, seqn, length;
             uint32_t total_size;
@@ -83,15 +85,15 @@ class Packet {
             char* stream = (char*)malloc(PACKET_SIZE);
             if (!stream) {
                 printf("Error: Failed to allocate memory for receiving packet.\n");
-                return Packet(0, 0, 0, "",0); // Return empty packet on memory allocation error
+                return Packet();
             }
 
             // Receiving the stream (packet headers and data) from the socket
             long int bytes_received = read(socket, stream, PACKET_SIZE);
             if (bytes_received <= 0) {
                 printf("Error receiving packet.\n");
-                free(stream);  // Free memory before returning
-                return Packet(0, 0, 0, "",0); // Return empty packet on read error
+                free(stream); 
+                return Packet(); 
             } else if (bytes_received < PACKET_SIZE) {
                 printf("Warning: Only %zd out of %d bytes received\n", bytes_received, PACKET_SIZE);
             } else {
@@ -102,7 +104,7 @@ class Packet {
             if (bytes_received < sizeof(type) + sizeof(seqn) + sizeof(total_size) + sizeof(length)) {
                 printf("Error: Incomplete header received.\n");
                 free(stream);
-                return Packet(0, 0, 0, "",0); // Return empty packet on incomplete header
+                return Packet(); 
             }
 
             // Remounting Packet from stream data
@@ -120,20 +122,13 @@ class Packet {
             if (length > MAX_PAYLOAD_SIZE) {
                 printf("Error: Payload length %d exceeds maximum allowed size %d.\n", length, MAX_PAYLOAD_SIZE);
                 free(stream);
-                return Packet(0, 0, 0, "",0); // Return empty packet if length is invalid
+                return Packet(); // Return empty packet if length is invalid
             }
-
-            // Copy payload data based on specified length
-            memcpy(payload, stream + offset, length);
-
-            // Print packet length to terminal
-            printf("Packet length when received: %d\n", length);
-            
+            memcpy(payload, stream + offset, length);            
 
             Packet packet(type, seqn, total_size, payload, length);
 
-            // Print packet length to terminal
-            printf("Packet length when received: %d\n", packet.getLength());
+            //printf("Packet length when received: %d\n", packet.getLength());
             free(stream); // Free allocated memory after use
 
             return packet;
