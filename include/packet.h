@@ -126,7 +126,7 @@ class Packet {
 
             Packet packet(type, seqn, total_size, payload, length);
             //printf("Packet length received: %d\n", packet.getLength());
-            
+
             free(stream); // Free allocated memory after use
 
             return packet;
@@ -134,11 +134,11 @@ class Packet {
 
 
         // Getters & Setters
-        char* getPayload(){
+        char* get_payload(){
             return _payload;
         }
 
-        uint16_t getLength(){
+        uint16_t get_length(){
             return length;
         }
 

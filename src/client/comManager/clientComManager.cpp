@@ -22,14 +22,14 @@ clientComManager::clientComManager(/* args */){};
 // PRIVATE METHODS
 
 // PUBLIC METHODS
-int clientComManager::connectClientToServer(int argc, char* argv[])
+int clientComManager::connect_client_to_server(int argc, char* argv[])
 {
     int sockfd, n, port;
     struct sockaddr_in serv_addr;
     struct hostent *server;
     char buffer[256];
 
-	setUserName(argv[1]);
+	set_username(argv[1]);
 	server = gethostbyname(argv[2]);
     port = atoi(argv[3]);
 
@@ -59,6 +59,11 @@ int clientComManager::connectClientToServer(int argc, char* argv[])
     return 0;
 }
 
+void get_sync_dir()
+{
+
+}
+
 // GETTERS & SETTERS
-std::string clientComManager::getUserName(){ return this->username; }
-void clientComManager::setUserName(std::string username){ this->username = username; }
+std::string clientComManager::get_username(){ return this->username; }
+void clientComManager::set_username(std::string username){ this->username = username; }

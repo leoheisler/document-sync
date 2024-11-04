@@ -11,12 +11,12 @@ clientParser::clientParser(/* args */){};
 
 
 // PRIVATE METHODS
-std::vector<std::string> clientParser::commandSplit(const std::string& str, char delimiter) {
+std::vector<std::string> clientParser::command_split(const std::string& str, char delimiter) {
     std::vector<std::string> tokens;
-    std::istringstream tokenStream(str);
+    std::istringstream token_stream(str);
     std::string token;
 
-    while (std::getline(tokenStream, token, delimiter)) {
+    while (std::getline(token_stream, token, delimiter)) {
         tokens.push_back(token);
     }
 
@@ -24,9 +24,9 @@ std::vector<std::string> clientParser::commandSplit(const std::string& str, char
 }
 
 // PUBLIC METHODS
-CommandStatus clientParser::verifyClientCommand(std::string command){
-    std::vector<std::string> comArgs = commandSplit(command,' ');
-    std::string comm = comArgs[0];
+CommandStatus clientParser::verify_client_command(std::string command){
+    std::vector<std::string> com_args = command_split(command,' ');
+    std::string comm = com_args[0];
     
     // verify if the command is valid
     if (comm != "list_server" && comm != "list_client" &&
@@ -37,19 +37,19 @@ CommandStatus clientParser::verifyClientCommand(std::string command){
     }
 
     // verify if the command has too many arguments
-    if (comArgs.size() > 2) {
+    if (com_args.size() > 2) {
         return CommandStatus::TOO_MANY_ARGS;
     }
 
     // verify if the command has just one argument besides the function
-    if ((comm == "download" || comm == "upload" || comm == "delete") && comArgs.size() < 2) {
+    if ((comm == "download" || comm == "upload" || comm == "delete") && com_args.size() < 2) {
         return CommandStatus::TOO_MANY_ARGS;
     }
 
     // verify single commands
     if ((comm == "list_server" || comm == "list_client" || 
          comm == "get_sync_dir" || comm == "exit") && 
-         comArgs.size() > 1) {
+         com_args.size() > 1) {
         return CommandStatus::TOO_MANY_ARGS;
     }
 

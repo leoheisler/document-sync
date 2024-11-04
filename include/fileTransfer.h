@@ -56,7 +56,7 @@ class FileTransfer {
                 total_packets = packet.total_size; 
 
                 // Write the received payload to the file
-                file.write(packet.getPayload(), packet.getLength());
+                file.write(packet.get_payload(), packet.get_length());
 
                 seq_num++;
                 // Check for end-of-transmission signal 

@@ -13,12 +13,12 @@ class clientComManager
         clientComManager(/* args */);
 
         // Communication Methods
-        int connectClientToServer(int argc, char* argv[]);
-        void getSyncDir();
+        int connect_client_to_server(int argc, char* argv[]);
+        void get_sync_dir();
 
         // Getters & Setters
-        std::string getUserName();
-        void setUserName(std::string username);
+        std::string get_username();
+        void set_username(std::string username);
 
 };
 #endif

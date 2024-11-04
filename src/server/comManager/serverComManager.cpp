@@ -21,7 +21,7 @@ serverComManager::serverComManager(/* args */){};
 // PRIVATE METHODS
 
 // PUBLIC METHODS
-int serverComManager::connectServerToClient(int argc, char* argv[])
+int serverComManager::connect_server_to_client(int argc, char* argv[])
 {
 	int sockfd, newsockfd, n;
 	//sockfd is the listening socket for accepting new connections.

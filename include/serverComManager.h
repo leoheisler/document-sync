@@ -13,6 +13,6 @@ class serverComManager
         serverComManager(/* args */);
 
         // Communication Methods
-        int connectServerToClient(int argc, char* argv[]);
+        int connect_server_to_client(int argc, char* argv[]);
 };
 #endif

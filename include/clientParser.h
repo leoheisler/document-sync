@@ -9,13 +9,13 @@ class clientParser
 {
     private: 
         std::string command;
-        std::vector<std::string> commandSplit(const std::string& str, char delimiter);
+        std::vector<std::string> command_split(const std::string& str, char delimiter);
     public:
         // Constructor Method
         clientParser(/* args */);
 
         // Command Methods
-        CommandStatus verifyClientCommand(std::string command);
-        bool executeCommand(std::string command);
+        CommandStatus verify_client_command(std::string command);
+        bool execute_command(std::string command);
 };
 #endif
