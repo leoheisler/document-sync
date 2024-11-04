@@ -52,7 +52,7 @@ int clientComManager::connectClientToServer(int argc, char* argv[])
         printf("ERROR connecting\n");
 
     //SEND THE FILE
-    std::string file_path = "../src/client/syncDir/teste.jpeg";
+    std::string file_path = "../src/client/syncDir/test.mp4";
     FileTransfer::send_file(file_path, sockfd);
 
 	close(sockfd);

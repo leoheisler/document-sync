@@ -54,7 +54,7 @@ int serverComManager::connectServerToClient(int argc, char* argv[])
 	bzero(buffer, 256);
 	
 	// Receive the file
-    std::string output_file_path ="../src/server/syncDir/teste.jpeg";
+    std::string output_file_path ="../src/server/syncDir/test.mp4";
     FileTransfer::receive_file(output_file_path, newsockfd);
 
 	// Open the received file and print its contents
@@ -62,11 +62,6 @@ int serverComManager::connectServerToClient(int argc, char* argv[])
     if (!file.is_open()) {
         std::cerr << "ERROR opening file: " << output_file_path << std::endl;
         return -1; // Exit with error code
-    }
-
-    std::string line;
-    while (std::getline(file, line)) {
-        std::cout << line << std::endl; // Print each line to the terminal
     }
 
     file.close(); // Close the file

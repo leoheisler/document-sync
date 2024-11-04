@@ -24,12 +24,14 @@ class FileTransfer {
 
             // Sending file in fragments of MAX_PAYLOAD_SIZE bytes
             char buffer[MAX_PAYLOAD_SIZE];
-            while (file.read(buffer, MAX_PAYLOAD_SIZE) || file.gcount() > 0) {
-                uint16_t payload_size = static_cast<uint16_t>(file.gcount()); 
+            file.read(buffer, MAX_PAYLOAD_SIZE);
+            while(file.gcount() > 0) {
+                int payload_size = file.gcount(); 
                 Packet packet(Packet::DATA_PACKET, seq_num++, total_packets, buffer, payload_size);
                 packet.send_packet(socket);
                 std::memset(buffer, 0, MAX_PAYLOAD_SIZE); 
-                //printf("Packet length file sent: %d\n", packet.getLength());
+                printf("Packet length file sent: %d\n", packet.getLength());
+                file.read(buffer, MAX_PAYLOAD_SIZE);
             }
 
             file.close();
@@ -51,12 +53,10 @@ class FileTransfer {
             // Receiving file in fragments of MAX_PAYLOAD_SIZE bytes
             while (true) {         
                 Packet packet = Packet::receive_packet(socket);
-                //printf("Packet length file received1: %d\n", packet.getLength());
                 total_packets = packet.total_size; 
 
                 // Write the received payload to the file
                 file.write(packet.getPayload(), packet.getLength());
-                //printf("Packet length file received2: %d\n", packet.getLength());
 
                 seq_num++;
                 // Check for end-of-transmission signal 

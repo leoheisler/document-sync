@@ -34,16 +34,22 @@ class Packet {
         static const int PACKET_SIZE = sizeof(type) + sizeof(seqn) + sizeof(total_size) + sizeof(length) + MAX_PAYLOAD_SIZE;
 
         // Packet Constructors Methods
-        Packet(uint16_t t, uint16_t s, uint32_t ts, const char* payload,  uint16_t payload_length) 
-            : type(t), seqn(s), total_size(ts), length(min(static_cast<int>(payload_length), MAX_PAYLOAD_SIZE)) {
+        Packet(uint16_t t, uint16_t s, uint32_t ts, const char* payload,  int payload_length) 
+            : type(t), seqn(s), total_size(ts), length(static_cast<uint16_t>(min(payload_length, MAX_PAYLOAD_SIZE))) {
             memcpy(_payload, payload, length); 
         }
         Packet() : type(ERR), seqn(0), total_size(0), length(0) {};
 
         // Packet Transmission Methods
         void send_packet(int socket) {
-            char* stream = (char*)malloc(PACKET_SIZE);
             size_t offset = 0;
+
+            // Allocate memory for sendingt the full packet
+            char* stream = (char*)malloc(PACKET_SIZE);
+            if (!stream) {
+                printf("Error: Failed to allocate memory for receiving packet.\n");
+                return;
+            }
 
             // Breaking Packet content into stream
             memcpy(stream + offset, &type, sizeof(type));
@@ -57,16 +63,16 @@ class Packet {
             memcpy(stream + offset, _payload, length);
 
             // Sending the stream (packet headers and data) to the specified socket
-            long int bytes_sent = write(socket, stream, PACKET_SIZE);
-
-            // Check if the send was successful
-            if (bytes_sent < 0) {
-                perror("ERROR sending packet"); 
-            } else if (bytes_sent < PACKET_SIZE) {
-                printf("Warning: Only %zd out of %d bytes sent\n", bytes_sent, PACKET_SIZE);
-            } else {
-                printf("Packet sent successfully: %zd bytes\n", bytes_sent);
-            }
+            long int bytes_sent, total_bytes_sent = 0;
+            do {
+                bytes_sent = write(socket, stream + total_bytes_sent, PACKET_SIZE - total_bytes_sent);
+                if (bytes_sent < 0) {
+                    printf("Error sending packet.\n");
+                    free(stream); 
+                    return; 
+                } 
+                total_bytes_sent += bytes_sent;
+            }while(total_bytes_sent < PACKET_SIZE);
 
             // Print packet length to terminal
             printf("Packet length sent: %d\n", length);
@@ -88,17 +94,17 @@ class Packet {
                 return Packet();
             }
 
-            // Receiving the stream (packet headers and data) from the socket
-            long int bytes_received = read(socket, stream, PACKET_SIZE);
-            if (bytes_received <= 0) {
-                printf("Error receiving packet.\n");
-                free(stream); 
-                return Packet(); 
-            } else if (bytes_received < PACKET_SIZE) {
-                printf("Warning: Only %zd out of %d bytes received\n", bytes_received, PACKET_SIZE);
-            } else {
-                printf("Packet received successfully: %zd bytes\n", bytes_received);
-            }
+            // Receiving the stream (packet headers and data) from the specified socket
+            long int bytes_received, total_bytes_received = 0;
+            do {
+                bytes_received = read(socket, stream + total_bytes_received, PACKET_SIZE - total_bytes_received);
+                if (bytes_received < 0) {
+                    printf("Error receiving packet.\n");
+                    free(stream); 
+                    return Packet(); 
+                } 
+                total_bytes_received += bytes_received;
+            }while(total_bytes_received < PACKET_SIZE);
 
             // Check if the received data is enough to fill headers
             if (bytes_received < sizeof(type) + sizeof(seqn) + sizeof(total_size) + sizeof(length)) {
@@ -120,7 +126,7 @@ class Packet {
 
             // Ensure length is within bounds to prevent buffer overflow
             if (length > MAX_PAYLOAD_SIZE) {
-                printf("Error: Payload length %d exceeds maximum allowed size %d.\n", length, MAX_PAYLOAD_SIZE);
+                //printf("Error: Payload length %d exceeds maximum allowed size %d.\n", length, MAX_PAYLOAD_SIZE);
                 free(stream);
                 return Packet(); // Return empty packet if length is invalid
             }
@@ -128,7 +134,7 @@ class Packet {
 
             Packet packet(type, seqn, total_size, payload, length);
 
-            //printf("Packet length when received: %d\n", packet.getLength());
+            //printf("Packet length received: %d\n", packet.getLength());
             free(stream); // Free allocated memory after use
 
             return packet;
