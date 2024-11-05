@@ -98,7 +98,7 @@ int serverComManager::connect_server_to_client(int argc, char* argv[])
 	// Receive the file
     // std::string output_file_path ="../src/server/syncDir/test.mp4";
     // FileTransfer::receive_file(output_file_path, newsockfd);
-	await_packets(newsockfd);
+	await_command_packet(newsockfd);
 
 	close(newsockfd);
 	close(sockfd);
