@@ -31,7 +31,7 @@ void serverComManager::evaluate_command(Packet command_packet, int socket)
 	}
 }
 
-void serverComManager::await_packets(int socket)
+void serverComManager::await_command_packet(int socket)
 {
 	while(true){
 		// Wait to receive a command packet from client
