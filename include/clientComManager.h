@@ -8,13 +8,13 @@ class clientComManager
 {
     private: 
         std::string username;
+        void get_sync_dir(int socket);
     public:
         // Constructor Method
         clientComManager(/* args */);
 
         // Communication Methods
         int connect_client_to_server(int argc, char* argv[]);
-        void get_sync_dir();
 
         // Getters & Setters
         std::string get_username();

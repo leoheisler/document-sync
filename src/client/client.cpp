@@ -8,8 +8,7 @@
 class client
 {
     private:
-        std::string username;
-        void checkCommandStatus(CommandStatus status){
+        void check_command_status(CommandStatus status){
             switch (status) {
                 case CommandStatus::VALID:
                     break;
@@ -34,11 +33,11 @@ class client
             CommandStatus commandStatus;
             bool exit = false;     
 
-            communicationManager.connectClientToServer(argc,argv);
+            communicationManager.connect_client_to_server(argc,argv);
             do{
-                checkCommandStatus(commandStatus);
+                check_command_status(commandStatus);
                 std::cin >> commandString;
-                commandStatus = parser.verifyClientCommand(commandString);
+                commandStatus = parser.verify_client_command(commandString);
             }while(!exit);
     
         }

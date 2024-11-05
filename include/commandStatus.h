@@ -10,4 +10,8 @@ enum class CommandStatus {
     TOO_FEW_ARGS
 };
 
+enum Command {
+    GET_SYNC_DIR = 0x0001,
+};
+
 #endif // COMMAND_STATUS_H

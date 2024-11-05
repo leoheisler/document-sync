@@ -134,12 +134,20 @@ class Packet {
 
 
         // Getters & Setters
-        char* get_payload(){
-            return _payload;
+        uint16_t get_type(){
+            return type;
+        }
+
+        uint16_t get_seqn(){
+            return seqn;
         }
 
         uint16_t get_length(){
             return length;
+        }
+
+        char* get_payload(){
+            return _payload;
         }
 
         void clear() {

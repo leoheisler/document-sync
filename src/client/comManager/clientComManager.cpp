@@ -20,6 +20,13 @@ using namespace std;
 clientComManager::clientComManager(/* args */){};
 
 // PRIVATE METHODS
+void clientComManager::get_sync_dir(int socket)
+{
+    // Send packet signaling server to execute get_sync_dir with client info (username and socket)
+    string client_info = (get_username() + "\n" + to_string(socket));
+    Packet get_sync_command = Packet(Packet::CMD_PACKET, Command::GET_SYNC_DIR, 1, client_info.c_str(), client_info.length());
+    get_sync_command.send_packet(socket);
+}
 
 // PUBLIC METHODS
 int clientComManager::connect_client_to_server(int argc, char* argv[])
@@ -52,16 +59,12 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
         printf("ERROR connecting\n");
 
     //SEND THE FILE
-    std::string file_path = "../src/client/syncDir/test.mp4";
-    FileTransfer::send_file(file_path, sockfd);
+    // std::string file_path = "../src/client/syncDir/test.mp4";
+    // FileTransfer::send_file(file_path, sockfd);
+    get_sync_dir(sockfd);
 
 	close(sockfd);
     return 0;
-}
-
-void get_sync_dir()
-{
-
 }
 
 // GETTERS & SETTERS

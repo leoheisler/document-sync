@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
 {
 	serverComManager serverCommunicationManager;
 
-	serverCommunicationManager.connectServerToClient(argc,argv);
+	serverCommunicationManager.connect_server_to_client(argc,argv);
 	return 0;
 }
 
