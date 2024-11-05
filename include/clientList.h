@@ -46,7 +46,7 @@ class ClientList {
         // Method to add a new device to the list
         void add_device(const string& uname, int device_sock) {
             ClientNode* current = head;
-
+            bool isConnected = true;
             // Search for the client node by username
             while (current != nullptr) {
                 if (current->get_username() == uname) {
@@ -56,7 +56,7 @@ class ClientList {
                     } else if (current->get_socket_device2() == 0) {
                         current->set_socket_device2(device_sock);  
                     } else {
-                        std::cout << uname << "Both device sockets are already filled." << std::endl;
+                        throw std::string("CLIENT FULL");
                     }
                     return;
                 }

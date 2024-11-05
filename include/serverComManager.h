@@ -17,13 +17,12 @@ class serverComManager
         void evaluate_command(Packet command_packet, int socket);
 
         // Communication Methods
-        void await_command_packet(int socket);
         void create_sync_dir(Packet sync_dir_packet, int socket);
+        
     public:
         // Constructor Method
         serverComManager();
+        void await_command_packet(int socket);
 
-        // Start Connection Method
-        int connect_server_to_client(int argc, char* argv[]);
 };
 #endif
