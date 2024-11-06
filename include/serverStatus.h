@@ -17,11 +17,11 @@ std::string toString(serverStatus status) {
         case serverStatus::OK:
             return "OK";
         case serverStatus::FAILED_TO_CREATE_SOCKET:
-            return "FAILED TO CREATE SOCKET";
+            return "FAILED TO CREATE SOCKET\n";
         case serverStatus::FAILED_TO_BIND_SOCKET:
-            return "FAILED TO BIND SOCKET";
+            return "FAILED TO BIND SOCKET\n";
         case serverStatus::FAILED_TO_ACCEPT_SOCKET:
-            return "FAILED TO ACCEPT SOCKET";
+            return "FAILED TO ACCEPT SOCKET\n";
         default:
             return "Unknown Status";  // Valor default para casos inesperados
     }

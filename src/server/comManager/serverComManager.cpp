@@ -46,7 +46,6 @@ void serverComManager::create_sync_dir(Packet sync_dir_packet, int socket)
 		try
 		{
 			clientDeviceList.add_device(username,socket);
-
 		}
 		//if couldnt connect, send and error packet
 		catch(const std::string& e)
@@ -55,8 +54,6 @@ void serverComManager::create_sync_dir(Packet sync_dir_packet, int socket)
 			Packet error_packet = Packet();
 			error_packet.send_packet(socket);
 		}
-
-
 	}
 }
 

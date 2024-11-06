@@ -5,17 +5,17 @@
 #include <unistd.h>   
 #include <sys/socket.h>
 #include <netinet/in.h>
-
+#include "fileTransfer.h"
 #include "fileManager.h"
 #include "serverComManager.h" 
 #include "serverStatus.h"
 
 #define PORT 4000
 
-serverStatus bindParentSocket(int* parent_socket){
+serverStatus bind_server_socket(int* server_socket){
 	struct sockaddr_in serv_addr;
 
-	if ((*parent_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+	if ((*server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		printf("ERROR opening socket");
 		return serverStatus::FAILED_TO_CREATE_SOCKET;
 	}
@@ -25,57 +25,60 @@ serverStatus bindParentSocket(int* parent_socket){
 	serv_addr.sin_port = htons(PORT);
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
 	bzero(&(serv_addr.sin_zero), 8);     
-	if (bind(*parent_socket, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
-		printf("ERROR on binding");
+	if (bind(*server_socket, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0){
+		cout << ("ERROR on binding");
 		return serverStatus::FAILED_TO_BIND_SOCKET;
-	
+	} 
+		
 
 	return serverStatus::OK;
 }
 
-serverStatus bindClientSocket(int* client_socket,int* parent_socket){
+serverStatus bind_client_sockets(int* client_cmd_socket, int* client_upload_socket, int* client_fetch_socket,int* server_socket){
 	struct sockaddr_in cli_addr;
 	socklen_t clilen = sizeof(struct sockaddr_in);
-	if ((*client_socket = accept(*parent_socket, (struct sockaddr *) &cli_addr, &clilen)) == -1) 
-			printf("ERROR on accept");
+
+	if ((*client_cmd_socket = accept(*server_socket, (struct sockaddr *) &cli_addr, &clilen)) == -1) 
+			printf("ERROR on accept cmd socket");
+
+	if ((*client_upload_socket = accept(*server_socket, (struct sockaddr *) &cli_addr, &clilen)) == -1) 
+			printf("ERROR on accept upload socket");
+
+	if ((*client_fetch_socket = accept(*server_socket, (struct sockaddr *) &cli_addr, &clilen)) == -1) 
+			printf("ERROR on accept fetch socket");
+
+	return serverStatus::OK;
 		
 }
 
 
 int main(int argc, char *argv[])
 {
+	//SERVER SOCKETS
+	int server_socket, client_cmd_socket, client_upload_socket, client_fetch_socket;
+	//SERVER MODULES
 	serverComManager serverCommunicationManager;
 	fileManager serverFileManager;
-
-	int parent_socket, client_socket;
-	//parent_socket is the listening socket for accepting new connections.
-	//client_socket is a separate socket used for actual communication with the connected client.
-
-	//prepare server socket
-	serverStatus isBinded = bindParentSocket(&parent_socket);
-	switch (isBinded)
-	{
-	case serverStatus::OK:
-		// LISTEN
-		listen(parent_socket, 5);
-
-		//ACCEPT
-		bindClientSocket(&client_socket,&parent_socket);
-		
-		//await for commands
-		serverCommunicationManager.await_command_packet(client_socket);
-
-
-		break;
 	
-	default:
+	//BIND MAIN SOCKET
+	serverStatus isBinded = bind_server_socket(&server_socket);
+		if(isBinded != serverStatus::OK){
 		cout << toString(isBinded);
-		break;
-	}	
-
+		return -1;
+	}
 	
-	close(client_socket);
-	close(parent_socket);
+	// LISTEN
+	listen(server_socket, 5);
+	cout << "================================\n SERVER LISTENING ON PORT 4000\n================================\n";
+	//ACCEPT
+	isBinded = bind_client_sockets(&client_cmd_socket,&client_fetch_socket,&client_upload_socket,&server_socket);
+		if(isBinded != serverStatus::OK){
+		cout<<toString(isBinded);
+		return -1;
+	}
+		
+	//await for commands
+	//serverCommunicationManager.await_command_packet(client_socket);
 	
 	return 0;
 }
