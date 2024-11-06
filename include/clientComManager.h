@@ -12,6 +12,7 @@ class clientComManager
         int sock_cmd = -1;
         int sock_upload = -1;
         int sock_fetch = -1;
+
         void get_sync_dir(int socket);
         void start_sockets();
         void connect_sockets(int port, hostent* server);

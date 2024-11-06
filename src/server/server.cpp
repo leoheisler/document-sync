@@ -7,12 +7,13 @@
 #include <netinet/in.h>
 #include "fileTransfer.h"
 #include "fileManager.h"
-#include "serverComManager.h" 
-#include "serverStatus.h"
+#include <serverComManager.h>
+
 
 #define PORT 4000
 
 serverStatus bind_server_socket(int* server_socket){
+
 	struct sockaddr_in serv_addr;
 
 	if ((*server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -34,51 +35,41 @@ serverStatus bind_server_socket(int* server_socket){
 	return serverStatus::OK;
 }
 
-serverStatus bind_client_sockets(int* client_cmd_socket, int* client_upload_socket, int* client_fetch_socket,int* server_socket){
-	struct sockaddr_in cli_addr;
-	socklen_t clilen = sizeof(struct sockaddr_in);
 
-	if ((*client_cmd_socket = accept(*server_socket, (struct sockaddr *) &cli_addr, &clilen)) == -1) 
-			printf("ERROR on accept cmd socket");
-
-	if ((*client_upload_socket = accept(*server_socket, (struct sockaddr *) &cli_addr, &clilen)) == -1) 
-			printf("ERROR on accept upload socket");
-
-	if ((*client_fetch_socket = accept(*server_socket, (struct sockaddr *) &cli_addr, &clilen)) == -1) 
-			printf("ERROR on accept fetch socket");
-
-	return serverStatus::OK;
-		
-}
 
 
 int main(int argc, char *argv[])
 {
 	//SERVER SOCKETS
-	int server_socket, client_cmd_socket, client_upload_socket, client_fetch_socket;
-	//SERVER MODULES
-	serverComManager serverCommunicationManager;
-	fileManager serverFileManager;
+	int server_socket;
 	
+	fileManager serverFileManager;
+	// Linked list to store client infos 
+    ClientList clientDeviceList;
+	// Handler of communications bewteen a single client and server
+	serverComManager serverCommunicationManager;
+
 	//BIND MAIN SOCKET
 	serverStatus isBinded = bind_server_socket(&server_socket);
 		if(isBinded != serverStatus::OK){
-		cout << toString(isBinded);
+		cout << to_string(isBinded);
 		return -1;
 	}
 	
 	// LISTEN
-	listen(server_socket, 5);
+	listen(server_socket, 6);
 	cout << "================================\n SERVER LISTENING ON PORT 4000\n================================\n";
+	
 	//ACCEPT
-	isBinded = bind_client_sockets(&client_cmd_socket,&client_fetch_socket,&client_upload_socket,&server_socket);
+	/* AQUI VAI FICAR O LOOP DE CRIAR NOVAS THREADS*/
+	isBinded = serverCommunicationManager.bind_client_sockets(&server_socket);
 		if(isBinded != serverStatus::OK){
-		cout<<toString(isBinded);
+		cout << to_string(isBinded);
 		return -1;
 	}
 		
 	//await for commands
-	//serverCommunicationManager.await_command_packet(client_socket);
+	serverCommunicationManager.await_command_packet(&clientDeviceList);
 	
 	return 0;
 }

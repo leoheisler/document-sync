@@ -25,6 +25,16 @@ void clientComManager::get_sync_dir(int socket)
     string client_info = (get_username() + "\n" + to_string(socket));
     Packet get_sync_command = Packet(Packet::CMD_PACKET, Command::GET_SYNC_DIR, 1, client_info.c_str(), client_info.length());
     get_sync_command.send_packet(socket);
+
+    std::string file_path1 = "../src/client/syncDir/socket_cmd.txt";
+    FileTransfer::receive_file(file_path1, this->sock_cmd);
+
+    std::string file_path2 = "../src/client/syncDir/socket_upload.txt";
+    FileTransfer::receive_file(file_path2, this->sock_upload);
+
+    std::string file_path3 = "../src/client/syncDir/socket_fetch.txt";
+    FileTransfer::receive_file(file_path3, this->sock_fetch);   
+
 }
 
 
@@ -72,6 +82,7 @@ void clientComManager::close_sockets(){
     close(this->sock_cmd);
     close(this->sock_fetch);
     close(this->sock_upload);
+    cout << "all sockets closed";
 }
 // PUBLIC METHODS
 int clientComManager::connect_client_to_server(int argc, char* argv[])
@@ -94,18 +105,9 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
 	
     // CONNECT
 	connect_sockets(port,server);
-    //SEND THE FILE
-    std::string file_path1 = "../src/client/syncDir/socket_cmd.txt";
-    FileTransfer::send_file(file_path1, this->sock_cmd);
+    //SEND dir files
+    get_sync_dir(this->sock_cmd);
 
-    std::string file_path2 = "../src/client/syncDir/socket_upload.txt";
-    FileTransfer::send_file(file_path2, this->sock_upload);
-
-    std::string file_path3 = "../src/client/syncDir/socket_fetch.txt";
-    FileTransfer::send_file(file_path3, this->sock_fetch);
-    //get_sync_dir(this->sock_cmd);
-
-	close_sockets();
     return 0;
 }
 
