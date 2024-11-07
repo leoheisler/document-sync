@@ -19,13 +19,13 @@ using namespace std;
 clientComManager::clientComManager(/* args */){};
 
 // PRIVATE METHODS
-void clientComManager::get_sync_dir(int socket)
+void clientComManager::get_sync_dir()
 {
     // Send packet signaling server to execute get_sync_dir with client info (username and socket)
-    string client_info = (get_username() + "\n" + to_string(socket));
+    string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
     Packet get_sync_command = Packet(Packet::CMD_PACKET, Command::GET_SYNC_DIR, 1, client_info.c_str(), client_info.length());
-    get_sync_command.send_packet(socket);
-
+    get_sync_command.send_packet(this->sock_cmd);
+    /*
     std::string file_path1 = "../src/client/syncDir/socket_cmd.txt";
     FileTransfer::receive_file(file_path1, this->sock_cmd);
 
@@ -34,6 +34,7 @@ void clientComManager::get_sync_dir(int socket)
 
     std::string file_path3 = "../src/client/syncDir/socket_fetch.txt";
     FileTransfer::receive_file(file_path3, this->sock_fetch);   
+    */
 
 }
 
@@ -102,11 +103,10 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
     // SOCKET
     start_sockets();
 
-	
     // CONNECT
 	connect_sockets(port,server);
     //SEND dir files
-    get_sync_dir(this->sock_cmd);
+    get_sync_dir();
 
     return 0;
 }

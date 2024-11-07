@@ -15,16 +15,19 @@
 #include "packet.h"
 
 
+
 #define PORT 4000
 
 // CONSTRUCTOR
-serverComManager::serverComManager(){};
+serverComManager::serverComManager(ClientList* client_list){ this->client_list = client_list;};
 
 // PRIVATE METHODS
 
-void serverComManager::create_sync_dir(Packet sync_dir_packet, ClientList* client_device_list)
+void serverComManager::start_communications()
 {
-	char* payload = sync_dir_packet.get_payload();
+	Packet starter_packet = Packet::receive_packet(this->client_cmd_socket);
+	char* payload = starter_packet.get_payload();
+	std::string file_path;
 
 	if(payload != nullptr){
 		// Extract username and client socket from packet payload
@@ -34,23 +37,14 @@ void serverComManager::create_sync_dir(Packet sync_dir_packet, ClientList* clien
 		//try to add client to device list
 		try
 		{
-			client_device_list->add_device(username,this->client_cmd_socket);
-			client_device_list->display_clients();
-
-
-		    std::string file_path1 = "../src/server/userDirectories/socket_cmd.txt";
-    		FileTransfer::send_file(file_path1, this->client_cmd_socket);
-
-			std::string file_path2 = "../src/server/userDirectories/socket_upload.txt";
-    		FileTransfer::send_file(file_path2, this->client_upload_socket);
-
-		    std::string file_path3 = "../src/server/userDirectories/socket_fetch.txt";
-    		FileTransfer::send_file(file_path3, this->client_fetch_socket);
-
+			this->client_list->add_device(username,this->client_cmd_socket);
+			this->client_list->display_clients();
+			
 		}
 		//if couldnt connect, send and error packet
 		catch(const std::string& e)
-		{
+		{	
+			std::cout << "cheguei aqui";
 			std::cout<< e << '\n';
 			Packet error_packet = Packet();
 			error_packet.send_packet(this->client_cmd_socket);
@@ -58,8 +52,9 @@ void serverComManager::create_sync_dir(Packet sync_dir_packet, ClientList* clien
 	}
 }
 
+
 // PUBLIC METHODS
-void serverComManager::await_command_packet(ClientList* client_device_list)
+void serverComManager::await_command_packet()
 {
 	while(true){
 		// Wait to receive a command packet from client
@@ -69,7 +64,7 @@ void serverComManager::await_command_packet(ClientList* client_device_list)
 		switch(command_packet.get_seqn()){
 			case Command::GET_SYNC_DIR:
 				cout << "Received get_sync_dir packet" << endl;
-				create_sync_dir(command_packet,client_device_list);
+				//create_sync_dir(command_packet);
 				break;
 	
 		}
@@ -94,6 +89,7 @@ serverStatus serverComManager::bind_client_sockets(int* server_socket){
         printf("ERROR on accept fetch socket\n");
         return serverStatus::FAILED_TO_ACCEPT_FETCH_SOCKET; // Retorna o erro apropriado
     }
+	start_communications();
 
 	return serverStatus::OK;
 		

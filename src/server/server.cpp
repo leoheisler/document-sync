@@ -6,7 +6,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "fileTransfer.h"
-#include "fileManager.h"
 #include <serverComManager.h>
 
 
@@ -17,7 +16,7 @@ serverStatus bind_server_socket(int* server_socket){
 	struct sockaddr_in serv_addr;
 
 	if ((*server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		printf("ERROR opening socket");
+		printf("ERROR opening socket\n");
 		return serverStatus::FAILED_TO_CREATE_SOCKET;
 	}
         
@@ -42,12 +41,10 @@ int main(int argc, char *argv[])
 {
 	//SERVER SOCKETS
 	int server_socket;
-	
-	fileManager serverFileManager;
 	// Linked list to store client infos 
-    ClientList clientDeviceList;
+    ClientList client_device_list;
 	// Handler of communications bewteen a single client and server
-	serverComManager serverCommunicationManager;
+	serverComManager server_com_manager(&client_device_list);
 
 	//BIND MAIN SOCKET
 	serverStatus isBinded = bind_server_socket(&server_socket);
@@ -62,14 +59,14 @@ int main(int argc, char *argv[])
 	
 	//ACCEPT
 	/* AQUI VAI FICAR O LOOP DE CRIAR NOVAS THREADS*/
-	isBinded = serverCommunicationManager.bind_client_sockets(&server_socket);
+	isBinded = server_com_manager.bind_client_sockets(&server_socket);
 		if(isBinded != serverStatus::OK){
 		cout << to_string(isBinded);
 		return -1;
 	}
 		
 	//await for commands
-	serverCommunicationManager.await_command_packet(&clientDeviceList);
+	server_com_manager.await_command_packet();
 	
 	return 0;
 }
