@@ -25,16 +25,6 @@ void clientComManager::get_sync_dir()
     string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
     Packet get_sync_command = Packet(Packet::CMD_PACKET, Command::GET_SYNC_DIR, 1, client_info.c_str(), client_info.length());
     get_sync_command.send_packet(this->sock_cmd);
-    /*
-    std::string file_path1 = "../src/client/syncDir/socket_cmd.txt";
-    FileTransfer::receive_file(file_path1, this->sock_cmd);
-
-    std::string file_path2 = "../src/client/syncDir/socket_upload.txt";
-    FileTransfer::receive_file(file_path2, this->sock_upload);
-
-    std::string file_path3 = "../src/client/syncDir/socket_fetch.txt";
-    FileTransfer::receive_file(file_path3, this->sock_fetch);   
-    */
 
 }
 

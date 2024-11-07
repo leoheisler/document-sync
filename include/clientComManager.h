@@ -4,7 +4,7 @@
 #include <vector>
 #include <sstream>
 #include <netdb.h>
-
+#include <clientFileManager.h>
 class clientComManager
 {
     private: 

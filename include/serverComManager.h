@@ -1,5 +1,5 @@
-#ifndef SERVERCOMMANAGER_H
-#define SERVERCOMMANAGER_H
+#ifndef SERVER_COM_MANAGER_H
+#define SERVER_COM_MANAGER_H
 #include <string>
 #include <vector>
 #include <sstream>
@@ -7,13 +7,13 @@
 #include "clientList.h"
 #include "packet.h"
 #include "serverStatus.h"
-#include "fileManager.h"
+#include "serverFileManager.h"
 
 class serverComManager
 {
     private: 
         ClientList* client_list;
-        fileManager file_manager;
+        serverFileManager file_manager;
         std::string username = "";
         int client_cmd_socket = -1;
         int client_upload_socket= -1; 

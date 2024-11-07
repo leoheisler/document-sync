@@ -16,6 +16,7 @@
 
 
 
+
 #define PORT 4000
 
 // CONSTRUCTOR
@@ -38,13 +39,12 @@ void serverComManager::start_communications()
 		try
 		{
 			this->client_list->add_device(username,this->client_cmd_socket);
-			this->client_list->display_clients();
+			this->file_manager.create_server_sync_dir(username);
 			
 		}
 		//if couldnt connect, send and error packet
 		catch(const std::string& e)
 		{	
-			std::cout << "cheguei aqui";
 			std::cout<< e << '\n';
 			Packet error_packet = Packet();
 			error_packet.send_packet(this->client_cmd_socket);
