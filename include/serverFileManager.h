@@ -2,6 +2,7 @@
 #define SERVER_FILEMANAGER_H
 #include <string>
 #include <filesystem>
+#include <vector> 
 #include <iostream>
 class serverFileManager
 {
@@ -10,5 +11,8 @@ class serverFileManager
     public:
         serverFileManager();
         void create_server_sync_dir(std::string username);
+
+        // Function to retrieve all paths inside user synchronized directory
+        std::vector<std::string> get_sync_dir(const std::string& username);
 };  
 #endif

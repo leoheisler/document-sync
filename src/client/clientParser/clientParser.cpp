@@ -56,3 +56,26 @@ CommandStatus clientParser::verify_client_command(std::string command){
     this->command = command;
     return CommandStatus::VALID;
 }
+
+// gets command from a string
+Command clientParser::get_command_from_string(const std::string& commandStr) {
+    if (commandStr == "get_sync_dir") {
+        return Command::GET_SYNC_DIR;
+    } else if (commandStr == "list_server") {
+        return Command::LIST_SERVER;
+    } else if (commandStr == "list_client") {
+        return Command::LIST_CLIENT;
+    } else if (commandStr == "exit") {
+        return Command::EXIT;
+    } else if (commandStr == "download") {
+        return Command::DOWNLOAD;
+    } else if (commandStr == "upload") {
+        return Command::UPLOAD;
+    } else if (commandStr == "delete") {
+        return Command::DELETE;
+    }
+
+    // Default case (if no matching command is found)
+    return static_cast<Command>(0);
+}
+

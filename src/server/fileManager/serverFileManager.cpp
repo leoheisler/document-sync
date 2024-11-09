@@ -1,4 +1,11 @@
 #include "serverFileManager.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <iostream>
+#include <vector>
+
 
 
 namespace fs = std::filesystem;
@@ -20,4 +27,23 @@ void serverFileManager::create_server_sync_dir(std::string username){
         std::cerr << "Não consegui criar o diretorio" << e.what() << '\n';
     }
     
+}
+
+// Function to retrieve all paths inside user synchronized directory
+std::vector<std::string> serverFileManager::get_sync_dir(const std::string& username) {
+  std::vector<std::string> paths; // vector to be returned.
+  std::string baseDir = "../src/server/userDirectories/sync_dir_" + username;
+
+  // Check if directory exists and iterate over files
+  if (fs::exists(baseDir) && fs::is_directory(baseDir)) {
+    for (const auto& entry : fs::recursive_directory_iterator(baseDir)) {
+      if (fs::is_regular_file(entry)) {
+        paths.push_back(entry.path().string()); // Add file path to vector
+      }
+    }
+  } else {
+    std::cerr << "Directory does not exist: " << baseDir << std::endl;
+  }
+
+  return paths; // Return the vector of file paths
 }

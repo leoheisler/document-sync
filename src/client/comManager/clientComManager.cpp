@@ -12,6 +12,7 @@
 #include "commandStatus.h"
 #include "packet.h"
 #include "fileTransfer.h"
+#include "clientParser.h" 
 
 using namespace std;
 
@@ -76,6 +77,39 @@ void clientComManager::close_sockets(){
     cout << "all sockets closed";
 }
 // PUBLIC METHODS
+
+// This is the interface on client that will deletage each method based on commands.
+// gets a command and returns an status, 200, 400... 
+std::string clientComManager::send_request_to_server(Command command) {
+    switch (command) {
+        case Command::GET_SYNC_DIR:
+            try {
+                get_sync_dir(); // Call the function that might throw
+                return "Everything ok.";
+            } catch (const std::exception& e) {
+                // Handle standard exceptions
+                return std::string("Something went wrong: ") + e.what();
+            } 
+        case Command::LIST_CLIENT:
+            return "NOT IMPLEMENTED YET";
+        case Command::LIST_SERVER:
+            return "NOT IMPLEMENTED YET";
+        case Command::UPLOAD:
+            return "NOT IMPLEMENTED YET";
+        case Command::DOWNLOAD:
+            return "NOT IMPLEMENTED YET";
+        case Command::DELETE:
+            return "NOT IMPLEMENTED YET";
+        case Command::EXIT:
+            std::cout << "Shutting down... bye bye" << std::endl;
+            std::exit(0);
+            break;
+        default:
+            // Convert Command enum to string using integer conversion
+            return "UNKNOWN COMMAND! The code shouldn't arrive here, check get_command_from_string and valid_command_status for debugging, code: " + std::to_string(static_cast<int>(command));
+    }
+}
+
 int clientComManager::connect_client_to_server(int argc, char* argv[])
 {
     int  port;

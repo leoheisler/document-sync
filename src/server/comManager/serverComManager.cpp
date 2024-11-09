@@ -54,12 +54,14 @@ void serverComManager::start_communications()
 
 
 // PUBLIC METHODS
+
+// This is the interface that will get commands from user and delegate through different methods
 void serverComManager::await_command_packet()
 {
 	while(true){
 		// Wait to receive a command packet from client
 		Packet command_packet = Packet::receive_packet(this->client_cmd_socket);
-
+		
 		// Determine what to do based on the command packet received
 		switch(command_packet.get_seqn()){
 			case Command::GET_SYNC_DIR:

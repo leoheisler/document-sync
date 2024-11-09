@@ -17,5 +17,6 @@ class clientParser
         // Command Methods
         CommandStatus verify_client_command(std::string command);
         bool execute_command(std::string command);
+        Command get_command_from_string(const std::string& commandStr);
 };
 #endif

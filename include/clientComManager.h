@@ -5,6 +5,7 @@
 #include <sstream>
 #include <netdb.h>
 #include <clientFileManager.h>
+#include "commandStatus.h"
 class clientComManager
 {
     private: 
@@ -20,6 +21,9 @@ class clientComManager
     public:
         // Constructor Method
         clientComManager(/* args */);
+
+        // Send packet based on user request
+        std::string send_request_to_server(Command command);
 
         // Communication Methods
         int connect_client_to_server(int argc, char* argv[]);
