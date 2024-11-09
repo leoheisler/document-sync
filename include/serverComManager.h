@@ -1,29 +1,34 @@
-#ifndef SERVERCOMMANAGER_H
-#define SERVERCOMMANAGER_H
+#ifndef SERVER_COM_MANAGER_H
+#define SERVER_COM_MANAGER_H
 #include <string>
 #include <vector>
 #include <sstream>
 
 #include "clientList.h"
 #include "packet.h"
+#include "serverStatus.h"
+#include "serverFileManager.h"
 
 class serverComManager
 {
     private: 
-        // Linked list to store client infos 
-        ClientList clientDeviceList;
-
-        // Aux methods
-        void evaluate_command(Packet command_packet, int socket);
+        ClientList* client_list;
+        serverFileManager file_manager;
+        std::string username = "";
+        int client_cmd_socket = -1;
+        int client_upload_socket= -1; 
+        int client_fetch_socket = -1;
 
         // Communication Methods
-        void await_command_packet(int socket);
-        void create_sync_dir(Packet sync_dir_packet, int socket);
+        void start_communications();
+       
+        
     public:
         // Constructor Method
-        serverComManager();
+        serverComManager(ClientList* client_list);
+        void await_command_packet();
+        serverStatus bind_client_sockets(int* server_socket);
+        
 
-        // Start Connection Method
-        int connect_server_to_client(int argc, char* argv[]);
 };
 #endif

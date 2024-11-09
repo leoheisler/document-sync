@@ -4,7 +4,7 @@
 #include "clientComManager.h"
 #include "clientParser.h" 
 #include "commandStatus.h"
-
+#include "clientFileManager.h"
 class client
 {
     private:
@@ -25,19 +25,21 @@ class client
         }
 
     public:
-        client(/* args */){};
+        client(){};
         void start(int argc, char* argv[]){
+            clientFileManager file_manager;
             clientParser parser;
-            clientComManager communicationManager;
-            std::string responseString,commandString;
-            CommandStatus commandStatus;
-            bool exit = false;     
+            clientComManager communication_manager;
+            std::string response_string,command_string;
+            CommandStatus command_status;
 
-            communicationManager.connect_client_to_server(argc,argv);
+            file_manager.create_client_sync_dir();
+            bool exit = false;     
+            communication_manager.connect_client_to_server(argc,argv);
             do{
-                check_command_status(commandStatus);
-                std::cin >> commandString;
-                commandStatus = parser.verify_client_command(commandString);
+                check_command_status(command_status);
+                std::cin >> command_string;
+                command_status = parser.verify_client_command(command_string);
             }while(!exit);
     
         }

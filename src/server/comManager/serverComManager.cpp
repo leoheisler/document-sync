@@ -14,93 +14,83 @@
 #include "fileTransfer.h"
 #include "packet.h"
 
+
+
+
 #define PORT 4000
 
 // CONSTRUCTOR
-serverComManager::serverComManager(){};
+serverComManager::serverComManager(ClientList* client_list){ this->client_list = client_list;};
 
 // PRIVATE METHODS
-void serverComManager::evaluate_command(Packet command_packet, int socket)
-{
-	int command_id = command_packet.get_seqn();
-	switch(command_id){
-		case Command::GET_SYNC_DIR:
-			cout << "Received get_sync_dir packet" << endl;
-			create_sync_dir(command_packet, socket);
-			break;
-	}
-}
 
-void serverComManager::await_command_packet(int socket)
+void serverComManager::start_communications()
 {
-	while(true){
-		// Wait to receive a command packet from client
-		Packet command_packet = Packet::receive_packet(socket);
+	Packet starter_packet = Packet::receive_packet(this->client_cmd_socket);
+	char* payload = starter_packet.get_payload();
+	std::string file_path;
 
-		// Determine what to do based on the command packet received
-		switch(command_packet.get_type()){
-			case Packet::CMD_PACKET:
-				evaluate_command(command_packet, socket);
-				break;
+	if(payload != nullptr){
+		// Extract username and client socket from packet payload
+		std::string username = strtok(payload, "\n");
+		this->username = username;
+
+		//try to add client to device list
+		try
+		{
+			this->client_list->add_device(username,this->client_cmd_socket);
+			this->file_manager.create_server_sync_dir(username);
+			
+		}
+		//if couldnt connect, send and error packet
+		catch(const std::string& e)
+		{	
+			std::cout<< e << '\n';
+			Packet error_packet = Packet();
+			error_packet.send_packet(this->client_cmd_socket);
 		}
 	}
 }
 
-void serverComManager::create_sync_dir(Packet sync_dir_packet, int socket)
+
+// PUBLIC METHODS
+void serverComManager::await_command_packet()
 {
-	char* payload = sync_dir_packet.get_payload();
+	while(true){
+		// Wait to receive a command packet from client
+		Packet command_packet = Packet::receive_packet(this->client_cmd_socket);
 
-	if(payload != nullptr){
-		// Extract usarnem and client socket from packet payload
-		std::string username = strtok(payload, "\n");
-		int socket = atoi(strtok(nullptr, "\0"));
-
-		//cout << username << endl << socket << endl;
-		clientDeviceList.add_device(username,socket);
-		clientDeviceList.display_clients();
-
+		// Determine what to do based on the command packet received
+		switch(command_packet.get_seqn()){
+			case Command::GET_SYNC_DIR:
+				cout << "Received get_sync_dir packet" << endl;
+				//create_sync_dir(command_packet);
+				break;
+	
+		}
 	}
 }
 
-// PUBLIC METHODS
-int serverComManager::connect_server_to_client(int argc, char* argv[])
-{
-	int sockfd, newsockfd, n;
-	//sockfd is the listening socket for accepting new connections.
-	//newsockfd is a separate socket used for actual communication with the connected client.
-	socklen_t clilen;
-	char buffer[256];
-	struct sockaddr_in serv_addr, cli_addr;
-	
-	// SOCKET
-	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-        printf("ERROR opening socket");
-	
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
-	serv_addr.sin_addr.s_addr = INADDR_ANY;
-	bzero(&(serv_addr.sin_zero), 8);     
-    
-	// BIND
-	if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
-		printf("ERROR on binding");
-	
-	// LISTEN
-	listen(sockfd, 5);
-	
-	// ACCEPT
-	clilen = sizeof(struct sockaddr_in);
-	if ((newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen)) == -1) 
-		printf("ERROR on accept");
-	
-	bzero(buffer, 256);
-	
-	// Receive the file
-    // std::string output_file_path ="../src/server/syncDir/test.mp4";
-    // FileTransfer::receive_file(output_file_path, newsockfd);
-	await_command_packet(newsockfd);
+serverStatus serverComManager::bind_client_sockets(int* server_socket){
+	struct sockaddr_in cli_addr;
+	socklen_t clilen = sizeof(struct sockaddr_in);
 
-	close(newsockfd);
-	close(sockfd);
-	return 0; 
+	if ((this->client_cmd_socket = accept(*server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
+        printf("ERROR on accept cmd socket\n");
+        return serverStatus::FAILED_TO_ACCEPT_CMD_SOCKET; // Retorna o erro apropriado
+    }
+
+    if ((this->client_upload_socket = accept(*server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
+        printf("ERROR on accept upload socket\n");
+        return serverStatus::FAILED_TO_ACCEPT_UPLOAD_SOCKET; // Retorna o erro apropriado
+    }
+
+    if ((this->client_fetch_socket = accept(*server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
+        printf("ERROR on accept fetch socket\n");
+        return serverStatus::FAILED_TO_ACCEPT_FETCH_SOCKET; // Retorna o erro apropriado
+    }
+	start_communications();
+
+	return serverStatus::OK;
+		
 }
