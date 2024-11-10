@@ -13,6 +13,7 @@
 #include "commandStatus.h"
 #include "fileTransfer.h"
 #include "packet.h"
+#include "serverFileManager.h"
 
 
 
@@ -58,15 +59,19 @@ void serverComManager::start_communications()
 // This is the interface that will get commands from user and delegate through different methods
 void serverComManager::await_command_packet()
 {
+	serverFileManager file_manager; 
 	while(true){
 		// Wait to receive a command packet from client
 		Packet command_packet = Packet::receive_packet(this->client_cmd_socket);
-		
+		FileTransfer sender_reciever;
 		// Determine what to do based on the command packet received
 		switch(command_packet.get_seqn()){
 			case Command::GET_SYNC_DIR:
-				cout << "Received get_sync_dir packet" << endl;
-				//create_sync_dir(command_packet);
+				std::vector<std::string> paths = file_manager.get_sync_dir(this->username);
+				for(const std::string& path : paths) {
+					sender_reciever.send_file(path, this->client_fetch_socket);
+					cout << path << endl;
+				}
 				break;
 	
 		}

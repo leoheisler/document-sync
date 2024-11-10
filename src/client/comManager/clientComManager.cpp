@@ -79,12 +79,14 @@ void clientComManager::close_sockets(){
 // PUBLIC METHODS
 
 // This is the interface on client that will deletage each method based on commands.
-// gets a command and returns an status, 200, 400... 
+// gets a command and returns an status, 200, 400...
 std::string clientComManager::send_request_to_server(Command command) {
+    FileTransfer sender_reciever_client;
     switch (command) {
         case Command::GET_SYNC_DIR:
             try {
                 get_sync_dir(); // Call the function that might throw
+                sender_reciever_client.receive_file("../src/client/sync_dir/cv_bruno_costa.txt", this->sock_fetch);
                 return "Everything ok.";
             } catch (const std::exception& e) {
                 // Handle standard exceptions
