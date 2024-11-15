@@ -58,15 +58,20 @@ void clientComManager::connect_sockets(int port, hostent* server){
     else
         cout <<"cmd socket connected\n";
 
-    if (connect(this->sock_upload,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-        cout << "ERROR connecting upload socket\n";
-    else
-        cout << "upload socket connected\n";
+    Packet handshake_packet = Packet::receive_packet(this->sock_cmd);
+    if(handshake_packet.get_type() == Packet::COMM_PACKET){
+        if (connect(this->sock_upload,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+            cout << "ERROR connecting upload socket\n";
+        else
+            cout <<"upload socket connected\n";
 
-    if (connect(this->sock_fetch,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-        cout << "ERROR connecting fetch socket\n";
-    else
-        cout << "fetch socket connected \n";
+        if (connect(this->sock_fetch,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+            cout << "ERROR connecting fetch socket\n";
+        else
+            cout <<"fetch socket connected\n";
+
+    }
+    
     
 }
 
