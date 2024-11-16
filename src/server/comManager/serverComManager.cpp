@@ -37,44 +37,39 @@ void serverComManager::start_communications()
 		this->username = username;
 
 		//try to add client to device list
-		try
-		{
-			this->client_list->add_device(username,this->client_cmd_socket);
-			this->file_manager.create_server_sync_dir(username);
-			this->client_list->display_clients();
-			
-		}
-		//if couldnt connect, send and error packet
-		catch(const std::string& e)
-		{	
-			std::cout<< e << '\n';
-			Packet error_packet = Packet();
-			error_packet.send_packet(this->client_cmd_socket);
-		}
+		this->client_list->add_device(username,this->client_cmd_socket);
+		this->file_manager.create_server_sync_dir(username);
+		// this->client_list->display_clients();
 	}
 }
 
 
 // PUBLIC METHODS
 
-// This is the interface that will get commands from user and delegate through different methods
+// This is the interface on server that will delegate each method based on commands.
 void serverComManager::await_command_packet()
 {
 	serverFileManager file_manager; 
 	while(true){
 		// Wait to receive a command packet from client
 		Packet command_packet = Packet::receive_packet(this->client_cmd_socket);
-		FileTransfer sender_reciever;
+
 		// Determine what to do based on the command packet received
 		switch(command_packet.get_seqn()){
-			case Command::GET_SYNC_DIR:
+			case Command::DOWNLOAD: {
+				string file_name = strtok(command_packet.get_payload(), "\n");
+				string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
+				FileTransfer::send_file(sync_dir_path, this->client_fetch_socket);
+				break;
+			}
+			case Command::GET_SYNC_DIR: {
 				std::vector<std::string> paths = file_manager.get_sync_dir(this->username);
 				for(const std::string& path : paths) {
-					sender_reciever.send_file(path, this->client_fetch_socket);
+					FileTransfer::send_file(path, this->client_fetch_socket);
 					cout << path << endl;
 				}
 				break;
-	
+			}
 		}
 	}
 }

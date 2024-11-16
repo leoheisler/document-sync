@@ -15,6 +15,7 @@ class clientComManager
         int sock_fetch = -1;
 
         void get_sync_dir();
+        void download(std::string file_name);
         void start_sockets();
         void connect_sockets(int port, hostent* server);
         void close_sockets();
@@ -23,7 +24,7 @@ class clientComManager
         clientComManager(/* args */);
 
         // Send packet based on user request
-        std::string send_request_to_server(Command command);
+        std::string execute_command(Command command);
 
         // Communication Methods
         int connect_client_to_server(int argc, char* argv[]);

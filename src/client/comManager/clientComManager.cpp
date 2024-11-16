@@ -29,6 +29,12 @@ void clientComManager::get_sync_dir()
 
 }
 
+void clientComManager::download(std::string file_name)
+{
+    // Send packet signaling to server what file it wants to download
+    Packet download_command = Packet(Packet::CMD_PACKET, Command::DOWNLOAD, 1, (file_name + "\n").c_str(), file_name.length());
+    FileTransfer::receive_file("../" + file_name, this->sock_fetch);
+}
 
 void clientComManager::start_sockets(){
 
@@ -83,18 +89,15 @@ void clientComManager::close_sockets(){
 }
 // PUBLIC METHODS
 
-// This is the interface on client that will deletage each method based on commands.
-// gets a command and returns an status, 200, 400...
-std::string clientComManager::send_request_to_server(Command command) {
+// This is the interface on client that will delegate each method based on commands.
+std::string clientComManager::execute_command(Command command) {
     FileTransfer sender_reciever_client;
     switch (command) {
         case Command::GET_SYNC_DIR:
             try {
-                get_sync_dir(); // Call the function that might throw
-                sender_reciever_client.receive_file("../src/client/sync_dir/cv_bruno_costa.txt", this->sock_fetch);
+                get_sync_dir(); 
                 return "Everything ok.";
             } catch (const std::exception& e) {
-                // Handle standard exceptions
                 return std::string("Something went wrong: ") + e.what();
             } 
         case Command::LIST_CLIENT:
@@ -104,7 +107,18 @@ std::string clientComManager::send_request_to_server(Command command) {
         case Command::UPLOAD:
             return "NOT IMPLEMENTED YET";
         case Command::DOWNLOAD:
-            return "NOT IMPLEMENTED YET";
+            try {           
+                // Recebe nome do arquivo a ser baixado na linha de comando 
+                string file_name;
+                cout << "\nInsira o nome do arquivo desejado: ";
+                cin >> file_name;
+
+                // Executa o comando/método de download
+                download(file_name);
+                return "Everything ok.";
+            } catch (const std::exception& e) {
+                return std::string("Something went wrong: ") + e.what();
+            } 
         case Command::DELETE:
             return "NOT IMPLEMENTED YET";
         case Command::EXIT:
@@ -112,7 +126,6 @@ std::string clientComManager::send_request_to_server(Command command) {
             std::exit(0);
             break;
         default:
-            // Convert Command enum to string using integer conversion
             return "UNKNOWN COMMAND! The code shouldn't arrive here, check get_command_from_string and valid_command_status for debugging, code: " + std::to_string(static_cast<int>(command));
     }
 }

@@ -87,12 +87,11 @@ int main(int argc, char *argv[])
 		first_contact_socket = accept(server_socket,(struct sockaddr*)&client_address,&client_len);
 		if(first_contact_socket >= 0){
 			std::thread t(connection_handler,server_socket,first_contact_socket,&client_device_list);
-			t.detach();
-
+			t.join();
 		}
 		
 	}
-	
+
 	return 0;
 }
 

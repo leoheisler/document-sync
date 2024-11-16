@@ -29,7 +29,7 @@ class ClientNode {
         void set_next(ClientNode* next_node) { next = next_node; }
 
         // Display client info (for debugging)
-        void display() const {
+        void display() {
             std::cout << "Client: " << username << endl
                     << " Device 1 Socket: " << socket_device1 << endl
                     << " Device 2 Socket: " << socket_device2 << endl;
