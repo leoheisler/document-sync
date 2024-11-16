@@ -41,6 +41,7 @@ void serverComManager::start_communications()
 		{
 			this->client_list->add_device(username,this->client_cmd_socket);
 			this->file_manager.create_server_sync_dir(username);
+			this->client_list->display_clients();
 			
 		}
 		//if couldnt connect, send and error packet

@@ -12,6 +12,7 @@
 
 
 #define PORT 4000
+std::mutex connect_hand;
 
 serverStatus bind_server_socket(int* server_socket){
 
@@ -48,13 +49,13 @@ void connection_handler(int server_socket, int first_contact_socket,ClientList* 
 	server_comm.bind_client_sockets(server_socket,first_contact_socket);
 
 	//permite o servidor aceitar outro cliente
-	connect.unlock();
+	connect_hand.unlock();
 
 	//thread fica em loop de comandos
 	server_comm.await_command_packet();
 }
 
-std::mutex connect;
+
 int main(int argc, char *argv[])
 {
 	//SERVER SOCKETS
@@ -80,12 +81,14 @@ int main(int argc, char *argv[])
 	// loop de criação de threads
 	while(true){
 		//pega o mutex para si, não deixando o while seguir aceitando outros clientes
-		connect.lock();
-		
+		connect_hand.lock();
+
 		//cria uma thread pra primeira conexão do cliente
 		first_contact_socket = accept(server_socket,(struct sockaddr*)&client_address,&client_len);
 		if(first_contact_socket >= 0){
 			std::thread t(connection_handler,server_socket,first_contact_socket,&client_device_list);
+			t.detach();
+
 		}
 		
 	}
