@@ -30,7 +30,7 @@ void serverFileManager::create_server_sync_dir(std::string username){
 }
 
 // Function to retrieve all paths inside user synchronized directory
-std::vector<std::string> serverFileManager::get_sync_dir(const std::string& username) {
+std::vector<std::string> serverFileManager::get_sync_dir_paths(const std::string& username) {
   std::vector<std::string> paths; // vector to be returned.
   std::string baseDir = "../src/server/userDirectories/sync_dir_" + username;
 

@@ -31,6 +31,7 @@ class clientComManager
         // Getters & Setters
         std::string get_username();
         void set_username(std::string username);
+        void receive_sync_dir_files();
 
 };
 #endif

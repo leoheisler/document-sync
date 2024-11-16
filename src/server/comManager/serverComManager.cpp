@@ -68,13 +68,25 @@ void serverComManager::await_command_packet()
 		// Determine what to do based on the command packet received
 		switch(command_packet.get_seqn()){
 			case Command::GET_SYNC_DIR:
-				std::vector<std::string> paths = file_manager.get_sync_dir(this->username);
-				for(const std::string& path : paths) {
-					sender_reciever.send_file(path, this->client_fetch_socket);
-					cout << path << endl;
+				std::vector<std::string> paths = file_manager.get_sync_dir_paths(this->username);
+				int total_paths = paths.size();
+				for(size_t i = 0; i < total_paths; ++i) {
+						// Construct the packet payload string
+						std::string payload = paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i);
+
+						// Create a packet for sending
+						Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
+
+						// Send the packet
+						get_sync_command.send_packet(this->client_fetch_socket);
+
+						// Optional logging
+						std::cout << "Sent path: " << paths[i] << std::endl;
+
+						// Send the file using sender_reciever
+						sender_reciever.send_file(paths[i], this->client_fetch_socket);
 				}
-				break;
-	
+			break;
 		}
 	}
 }
