@@ -27,7 +27,7 @@ class serverComManager
         // Constructor Method
         serverComManager(ClientList* client_list);
         void await_command_packet();
-        serverStatus bind_client_sockets(int* server_socket);
+        serverStatus bind_client_sockets(int server_socket, int first_comm_socket);
         
 
 };

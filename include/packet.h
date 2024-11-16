@@ -28,6 +28,7 @@ class Packet {
             ERR = 0x0000,
             DATA_PACKET = 0x0001,
             CMD_PACKET = 0x0002,
+            COMM_PACKET = 0x0003
         };
 
         // Constant for total packet size in bytes
@@ -38,6 +39,7 @@ class Packet {
             : type(t), seqn(s), total_size(ts), length(static_cast<uint16_t>(min(payload_length, MAX_PAYLOAD_SIZE))) {
             memcpy(_payload, payload, length); 
         }
+        Packet(int sock_add): type(COMM_PACKET), seqn(0), total_size(0), length(0) {};
         Packet() : type(ERR), seqn(0), total_size(0), length(0) {};
 
         // Packet Transmission Methods

@@ -41,6 +41,7 @@ void serverComManager::start_communications()
 		{
 			this->client_list->add_device(username,this->client_cmd_socket);
 			this->file_manager.create_server_sync_dir(username);
+			this->client_list->display_clients();
 			
 		}
 		//if couldnt connect, send and error packet
@@ -78,21 +79,18 @@ void serverComManager::await_command_packet()
 	}
 }
 
-serverStatus serverComManager::bind_client_sockets(int* server_socket){
+serverStatus serverComManager::bind_client_sockets(int server_socket, int first_comm_socket){
 	struct sockaddr_in cli_addr;
 	socklen_t clilen = sizeof(struct sockaddr_in);
 
-	if ((this->client_cmd_socket = accept(*server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
-        printf("ERROR on accept cmd socket\n");
-        return serverStatus::FAILED_TO_ACCEPT_CMD_SOCKET; // Retorna o erro apropriado
-    }
+	this->client_cmd_socket = first_comm_socket;
 
-    if ((this->client_upload_socket = accept(*server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
+    if ((this->client_upload_socket = accept(server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
         printf("ERROR on accept upload socket\n");
         return serverStatus::FAILED_TO_ACCEPT_UPLOAD_SOCKET; // Retorna o erro apropriado
     }
 
-    if ((this->client_fetch_socket = accept(*server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
+    if ((this->client_fetch_socket = accept(server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
         printf("ERROR on accept fetch socket\n");
         return serverStatus::FAILED_TO_ACCEPT_FETCH_SOCKET; // Retorna o erro apropriado
     }
