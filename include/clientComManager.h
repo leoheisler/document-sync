@@ -38,6 +38,7 @@ class clientComManager
         std::string get_username();
         void set_username(std::string username);
         void receive_sync_dir_files();
+        void send_delete_request(std::string file_name);
 
         // Setter, para poder chamar o list_files dentro do ComManager
         void set_file_manager(clientFileManager* fm); 
