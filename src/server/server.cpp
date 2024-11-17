@@ -44,14 +44,15 @@ void connection_handler(int server_socket, int first_contact_socket,ClientList* 
 	//envia um pacote dizendo que o primeiro contato foi estabelecido e o cliente pode enviar as outras conexões
 	Packet handshake_packet(first_contact_socket);
 	handshake_packet.send_packet(first_contact_socket);
-
+	
 	//connecta as outras conexões
 	server_comm.bind_client_sockets(server_socket,first_contact_socket);
-
+	
 	//permite o servidor aceitar outro cliente
 	connect_hand.unlock();
-
+	
 	//thread fica em loop de comandos
+	
 	server_comm.await_command_packet();
 }
 
@@ -88,11 +89,10 @@ int main(int argc, char *argv[])
 		if(first_contact_socket >= 0){
 			std::thread t(connection_handler,server_socket,first_contact_socket,&client_device_list);
 			t.detach();
-
 		}
 		
 	}
-	
+
 	return 0;
 }
 

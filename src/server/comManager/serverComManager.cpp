@@ -27,50 +27,50 @@ serverComManager::serverComManager(ClientList* client_list){ this->client_list =
 
 void serverComManager::start_communications()
 {
+	
 	Packet starter_packet = Packet::receive_packet(this->client_cmd_socket);
 	char* payload = starter_packet.get_payload();
 	std::string file_path;
-
+	
 	if(payload != nullptr){
 		// Extract username and client socket from packet payload
 		std::string username = strtok(payload, "\n");
 		this->username = username;
 
 		//try to add client to device list
-		try
-		{
-			this->client_list->add_device(username,this->client_cmd_socket);
-			this->file_manager.create_server_sync_dir(username);
-			this->client_list->display_clients();
-			
-		}
-		//if couldnt connect, send and error packet
-		catch(const std::string& e)
-		{	
-			std::cout<< e << '\n';
-			Packet error_packet = Packet();
-			error_packet.send_packet(this->client_cmd_socket);
-		}
+		this->client_list->add_device(username,this->client_cmd_socket);
+		this->file_manager.create_server_sync_dir(username);
+		this->client_list->display_clients();
 	}
+	
 }
 
 
 // PUBLIC METHODS
 
-// This is the interface that will get commands from user and delegate through different methods
+// This is the interface on server that will delegate each method based on commands.
 void serverComManager::await_command_packet()
 {
 	serverFileManager file_manager; 
-	while(true){
+	while(true) {
 		// Wait to receive a command packet from client
 		Packet command_packet = Packet::receive_packet(this->client_cmd_socket);
-		FileTransfer sender_reciever;
 		// Determine what to do based on the command packet received
 		switch(command_packet.get_seqn()){
-			case Command::GET_SYNC_DIR:
+
+			case Command::DOWNLOAD: {
+				cout << "recebi o comando de download do user " + this->username << std::endl;
+				string file_name = strtok(command_packet.get_payload(), "\n");
+				string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
+				string file_path = sync_dir_path + "/" + file_name;
+				FileTransfer::send_file(file_path, this->client_fetch_socket);
+				break;
+			  }
+
+			case Command::GET_SYNC_DIR:{
 				std::vector<std::string> paths = file_manager.get_sync_dir_paths(this->username);
 				int total_paths = paths.size();
-				for(size_t i = 0; i < total_paths; ++i) {
+				for(size_t i = 0; i < total_paths; ++i){
 						// Construct the packet payload string
 						std::string payload = paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i);
 
@@ -85,8 +85,9 @@ void serverComManager::await_command_packet()
 
 						// Send the file using sender_reciever
 						sender_reciever.send_file(paths[i], this->client_fetch_socket);
-				}
+				   }
 			break;
+        }
 		}
 	}
 }
@@ -94,7 +95,6 @@ void serverComManager::await_command_packet()
 serverStatus serverComManager::bind_client_sockets(int server_socket, int first_comm_socket){
 	struct sockaddr_in cli_addr;
 	socklen_t clilen = sizeof(struct sockaddr_in);
-
 	this->client_cmd_socket = first_comm_socket;
 
     if ((this->client_upload_socket = accept(server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
@@ -106,8 +106,7 @@ serverStatus serverComManager::bind_client_sockets(int server_socket, int first_
         printf("ERROR on accept fetch socket\n");
         return serverStatus::FAILED_TO_ACCEPT_FETCH_SOCKET; // Retorna o erro apropriado
     }
-	start_communications();
-
+	start_communications();	 
 	return serverStatus::OK;
 		
 }
