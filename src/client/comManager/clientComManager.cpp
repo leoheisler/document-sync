@@ -72,6 +72,69 @@ void clientComManager::receive_sync_dir_files() {
     }
     return;
 }
+void clientComManager::list_server() {
+    // Envia um pacote sinalizando ao servidor para executar a função de listar os tempos dos arquivos
+    string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
+    
+    // Cria o pacote com o tipo de comando para listar os tempos
+    Packet list_server_command = Packet(Packet::CMD_PACKET, Command::LIST_SERVER, 1, client_info.c_str(), client_info.length());
+    
+    // Envia o pacote ao servidor
+    list_server_command.send_packet(this->sock_cmd);
+}
+
+void clientComManager::receive_list_server_times() {
+    int client_socket = this->sock_cmd;
+
+    while (true) {
+        // Recebe um pacote do servidor
+        Packet received_packet = Packet::receive_packet(client_socket);
+
+        // Se o pacote não for um DATA_PACKET, significa que não há mais dados a receber
+        if (received_packet.get_type() != Packet::DATA_PACKET) {
+            std::cout << this->username + " received all file times information" << std::endl;
+            break;
+        }
+
+        // Extrai o payload do pacote
+        std::string payload(received_packet.get_payload(), received_packet.get_length());
+
+        // Divide o payload para extrair o caminho do arquivo e os tempos
+        std::istringstream payload_stream(payload);
+        int total_paths = 0, index = 0;
+        std::string path, mtime, atime, ctime;
+
+        // Lê os dados do payload
+        if (std::getline(payload_stream, path, '\n') &&
+            std::getline(payload_stream, mtime, '\n') && 
+            std::getline(payload_stream, atime, '\n') && 
+            std::getline(payload_stream, ctime, '\n') && 
+            payload_stream >> total_paths && 
+            payload_stream >> index ) {
+            
+            // Supondo que path seja um caminho completo do arquivo
+            std::filesystem::path file_path(path);  // Converte o caminho para um objeto path
+
+            // Loga a informação recebida
+            std::cout << "Received file times for: " << file_path.filename().string() << std::endl;
+            std::cout << "Modification time (MTime): " << mtime << std::endl;
+            std::cout << "Access time (ATime): " << atime << std::endl;
+            std::cout << "Change/Creation time (CTime): " << ctime << std::endl << std::endl;
+
+             // Check if all paths are received
+            if (index + 1 == total_paths) {
+                std::cout << "All files received." << std::endl;
+                break;
+                return;
+            }
+        } else {
+            std::cerr << "Error: Invalid payload format." << std::endl;
+            break;
+        }
+
+    }
+    return;
+}
 
 void clientComManager::download(std::string file_name)
 {
@@ -162,7 +225,13 @@ std::string clientComManager::execute_command(Command command) {
                 return "Erro: file_manager não configurado.";
             }
         case Command::LIST_SERVER:
-            return "NOT IMPLEMENTED YET";
+            try {
+                list_server();
+                receive_list_server_times(); 
+                return "Everything ok.";
+            } catch (const std::exception& e) {
+                return std::string("Something went wrong: ") + e.what();
+            } 
         case Command::UPLOAD:
             return "NOT IMPLEMENTED YET";
         case Command::DOWNLOAD:
@@ -225,6 +294,7 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
 
     return 0;
 }
+
 
 // GETTERS & SETTERS
 std::string clientComManager::get_username(){ return this->username; }

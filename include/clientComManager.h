@@ -19,6 +19,9 @@ class clientComManager
         clientFileManager* file_manager = nullptr;
 
         void get_sync_dir();
+        void receive_sync_dir_files();
+        void list_server();
+        void receive_list_server_times();
         void download(std::string file_name);
         void start_sockets();
         void connect_sockets(int port, hostent* server);
@@ -37,7 +40,6 @@ class clientComManager
         // Getters & Setters
         std::string get_username();
         void set_username(std::string username);
-        void receive_sync_dir_files();
 
         // Setter, para poder chamar o list_files dentro do ComManager
         void set_file_manager(clientFileManager* fm); 

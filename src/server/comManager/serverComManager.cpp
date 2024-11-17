@@ -15,6 +15,8 @@
 #include "packet.h"
 #include "serverFileManager.h"
 #include <mutex>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 
 
@@ -54,6 +56,57 @@ void serverComManager::get_sync_dir()
 		// Send the file using sender_reciever
 		FileTransfer::send_file(paths[i], this->client_cmd_socket);
 	}
+}
+
+void serverComManager::list_server() {
+    cout << "received list server command from user: " + this->username << std::endl;
+    
+    // Obtém os caminhos dos arquivos no diretório de sincronização do usuário
+    std::vector<std::string> paths = serverFileManager::get_sync_dir_paths(this->username);
+    int total_paths = paths.size();
+    
+    // Se não houver arquivos no diretório de sincronização
+    if (total_paths == 0) {
+        // Informa ao cliente que não há arquivos para listar
+        Packet no_files(Packet::ERR, 1, 1, "No files to list", 0);
+        no_files.send_packet(this->client_cmd_socket);
+        return;
+    }
+
+    // Para cada arquivo, calcula os tempos e envia para o cliente
+    for (size_t i = 0; i < total_paths; ++i) {
+        // Obtém os tempos MAC (modification time, access time, change/creation time)
+        struct stat file_stat;
+        if (stat(paths[i].c_str(), &file_stat) == -1) {
+            // Se falhar ao obter os tempos do arquivo, envia uma mensagem de erro
+            std::string error_msg = "Error retrieving times for file: " + paths[i];
+            Packet error_packet(Packet::ERR, 1, 1, error_msg.c_str(), error_msg.size());
+            error_packet.send_packet(this->client_cmd_socket);
+            continue;
+        }
+
+        // Formatação dos tempos como strings
+        std::ostringstream mtime_stream, atime_stream, ctime_stream;
+        mtime_stream << std::put_time(std::localtime(&file_stat.st_mtime), "%Y-%m-%d %H:%M:%S");
+        atime_stream << std::put_time(std::localtime(&file_stat.st_atime), "%Y-%m-%d %H:%M:%S");
+        ctime_stream << std::put_time(std::localtime(&file_stat.st_ctime), "%Y-%m-%d %H:%M:%S");
+
+        // Formata a mensagem para enviar
+        std::string file_info = paths[i] + "\n" +
+                                mtime_stream.str() + "\n" +
+                                atime_stream.str() + "\n" +
+                                ctime_stream.str() + "\n" +
+								std::to_string(total_paths) + "\n" + std::to_string(i);
+
+        // Cria um pacote com a informação do arquivo
+        Packet file_info_packet(Packet::DATA_PACKET, 1, 1, file_info.c_str(), file_info.size());
+
+        // Envia o pacote para o cliente
+        file_info_packet.send_packet(this->client_cmd_socket);
+
+        // Log opcional para monitoramento
+        std::cout << "Sent file info: " << file_info << std::endl;
+    }
 }
 
 void serverComManager::end_communications(){
@@ -121,6 +174,13 @@ void serverComManager::await_command_packet()
 				end_communications();
 				exit = true;
 				break;
+			}
+			// Comando para listar arquivos no servidor
+            case Command::LIST_SERVER: {
+				list_server();
+                std::cout << "received list_server command from user: " + this->username << std::endl;
+                
+                break;
 			}
 		}
 	}

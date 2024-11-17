@@ -23,6 +23,7 @@ class serverComManager
         void start_communications();
         void end_communications();
         void get_sync_dir();
+        void list_server();
        
         
     public:
