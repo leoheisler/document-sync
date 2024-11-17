@@ -13,6 +13,6 @@ class serverFileManager
         void create_server_sync_dir(std::string username);
 
         // Function to retrieve all paths inside user synchronized directory
-        std::vector<std::string> get_sync_dir(const std::string& username);
+        std::vector<std::string> get_sync_dir_paths(const std::string& username);
 };  
 #endif

@@ -29,6 +29,7 @@ void clientComManager::get_sync_dir()
 
 }
 
+
 void clientComManager::download(std::string file_name)
 {
     // Send packet signaling to server what file it wants to download
@@ -36,6 +37,52 @@ void clientComManager::download(std::string file_name)
     download_command.send_packet(this->sock_cmd);
     FileTransfer::receive_file("../" + file_name, this->sock_fetch);
 }
+
+void clientComManager::receive_sync_dir_files() {
+    int client_socket = this->sock_fetch;
+    FileTransfer receiver;
+    while (true) {
+        // Receive a packet
+        Packet received_packet = Packet::receive_packet(client_socket);
+        if (received_packet.get_type() != Packet::DATA_PACKET) {
+            // Handle unexpected packet type (optional)
+            std::cerr << "Error: Received an unexpected packet type." << std::endl;
+            break;
+        }
+
+        // Extract the payload
+        std::string payload(received_packet.get_payload(), received_packet.get_length());
+
+        // Split the payload to extract path, total paths, and index
+        std::istringstream payload_stream(payload);
+        std::string path;
+        int total_paths = 0, index = 0;
+
+        if (std::getline(payload_stream, path, '\n') && 
+            payload_stream >> total_paths && 
+            payload_stream >> index) {
+            // Log received information
+            std::cout << "Received path: " << path << " (Index " << index << " of " << total_paths << ")" << std::endl;
+
+            size_t last_slash = path.find_last_of("/\\");
+            std::string filename = (last_slash != std::string::npos) ? path.substr(last_slash) : path;
+            // Receive the file using the extracted path
+            cout << "will store at: ../src/client/sync_dir" + filename << endl;
+            receiver.receive_file("../src/client/sync_dir" + filename, client_socket);
+
+            // Check if all paths are received
+            if (index + 1 == total_paths) {
+                std::cout << "All files received." << std::endl;
+                break;
+            }
+        } else {
+            std::cerr << "Error: Invalid payload format." << std::endl;
+            break;
+        }
+    }
+}
+
+
 
 void clientComManager::start_sockets(){
 
@@ -96,7 +143,10 @@ std::string clientComManager::execute_command(Command command) {
     switch (command) {
         case Command::GET_SYNC_DIR:
             try {
-                get_sync_dir(); 
+
+                get_sync_dir(); // Call the function that might throw
+                receive_sync_dir_files(); 
+
                 return "Everything ok.";
             } catch (const std::exception& e) {
                 return std::string("Something went wrong: ") + e.what();
