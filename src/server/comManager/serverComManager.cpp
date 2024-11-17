@@ -68,26 +68,28 @@ void serverComManager::await_command_packet()
 			  }
 
 			case Command::GET_SYNC_DIR:{
+				cout << "recebi o comando de get sync dir do user " + this->username <<std::endl;
+				
 				std::vector<std::string> paths = file_manager.get_sync_dir_paths(this->username);
 				int total_paths = paths.size();
 				for(size_t i = 0; i < total_paths; ++i){
-						// Construct the packet payload string
-						std::string payload = paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i);
+					// Construct the packet payload string
+					std::string payload = paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i);
 
-						// Create a packet for sending
-						Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
+					// Create a packet for sending
+					Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
 
-						// Send the packet
-						get_sync_command.send_packet(this->client_fetch_socket);
+					// Send the packet
+					get_sync_command.send_packet(this->client_fetch_socket);
 
-						// Optional logging
-						std::cout << "Sent path: " << paths[i] << std::endl;
+					// Optional logging
+					std::cout << "Sent path: " << paths[i] << std::endl;
 
-						// Send the file using sender_reciever
-						sender_reciever.send_file(paths[i], this->client_fetch_socket);
-				   }
+					// Send the file using sender_reciever
+					FileTransfer::send_file(paths[i], this->client_fetch_socket);
+				}
 			break;
-        }
+        	}
 		}
 	}
 }

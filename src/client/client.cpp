@@ -34,6 +34,7 @@ class client
             cout << "4. list_server - Lista os arquivos salvos no servidor associados ao usuário.\n";
             cout << "5. list_client - Lista os arquivos salvos no diretório \"sync_dir\" local.\n";
             cout << "6. exit - Fecha a sessão com o servidor.\n";
+            cout << "7. get_sync_dir" <<std::endl;
 
             int option;
             cout << "\nDigite o número da opção desejada: ";
@@ -45,6 +46,7 @@ class client
                 case 4: return Command:: LIST_SERVER;
                 case 5: return Command::LIST_CLIENT;
                 case 6: return Command::EXIT;
+                case 7: return Command::GET_SYNC_DIR;
                 default: return Command::EXIT;
             }
         }
