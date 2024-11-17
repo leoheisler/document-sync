@@ -20,8 +20,21 @@ using namespace std;
 clientComManager::clientComManager(/* args */){};
 
 // PRIVATE METHODS
+
+// asks for the file that will be deleted and sends request with file and username
+// inotify will probably listen to changes in server and update local directories on clients..
+void clientComManager::send_delete_request(std::string file_name)
+{
+    // Send packet signaling to server what file it wants to delete.
+    Packet delete_command = Packet(Packet::CMD_PACKET, Command::DELETE, 1, (file_name + "\n").c_str(), file_name.length());
+    delete_command.send_packet(this->sock_cmd);
+}
+
+
 void clientComManager::get_sync_dir()
 {
+    //first erase everything that was in clint sync_dir, we dont want other clients files in new clients directory
+    cout << clientFileManager::erase_dir("../src/client/sync_dir") << endl;
     // Send packet signaling server to execute get_sync_dir with client info (username and socket)
     string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
     Packet get_sync_command = Packet(Packet::CMD_PACKET, Command::GET_SYNC_DIR, 1, client_info.c_str(), client_info.length());
@@ -47,7 +60,7 @@ void clientComManager::receive_sync_dir_files() {
         std::string path;
         int total_paths = 0, index = 0;
 
-        if (std::getline(payload_stream, path, '\n') && 
+        if (std::getline(payload_stream, path, '\n') &&
             payload_stream >> total_paths && 
             payload_stream >> index) {
             // Log received information
@@ -185,8 +198,6 @@ void clientComManager::connect_sockets(int port, hostent* server){
             cout <<"fetch socket connected\n";
 
     }
-    
-    
 }
 
 void clientComManager::close_sockets(){
@@ -248,7 +259,16 @@ std::string clientComManager::execute_command(Command command) {
                 return std::string("Something went wrong: ") + e.what();
             } 
         case Command::DELETE:
-            return "NOT IMPLEMENTED YET";
+            try {
+                string file_name;
+                cout << "\nInsira o nome do arquivo desejado: ";
+                cin >> file_name;
+
+                send_delete_request(file_name);
+                return "Everything ok.";
+            } catch (const std::exception& e) {
+                return std::string("Something went wrong: ") + e.what();
+            }
         case Command::EXIT:{ 
             Packet exit_command = Packet(Packet::CMD_PACKET, Command::EXIT, 0, "", 0);
             exit_command.send_packet(this->sock_cmd);

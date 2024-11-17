@@ -29,6 +29,19 @@ void serverFileManager::create_server_sync_dir(std::string username){
     
 }
 
+std::string serverFileManager::delete_file(std::string file_path) {
+  try {
+        if (fs::remove(file_path)) {
+            return "File deleted successfully.\n";
+        } else {
+            return "File not found or unable to delete.\n";
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << "Error: " << e.what() << '\n';
+        return "Something went wrong";
+    }
+}
+
 // Function to retrieve all paths inside user synchronized directory
 std::vector<std::string> serverFileManager::get_sync_dir_paths(const std::string& username) {
   std::vector<std::string> paths; // vector to be returned.
