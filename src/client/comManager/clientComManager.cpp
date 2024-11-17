@@ -20,26 +20,29 @@ using namespace std;
 clientComManager::clientComManager(/* args */){};
 
 // PRIVATE METHODS
+
+// asks for the file that will be deleted and sends request with file and username
+// inotify will probably listen to changes in server and update local directories on clients..
+void clientComManager::send_delete_request(std::string file_name)
+{
+    // Send packet signaling to server what file it wants to delete.
+    Packet delete_command = Packet(Packet::CMD_PACKET, Command::DELETE, 1, (file_name + "\n").c_str(), file_name.length());
+    delete_command.send_packet(this->sock_cmd);
+}
+
+
 void clientComManager::get_sync_dir()
 {
+    //first erase everything that was in clint sync_dir, we dont want other clients files in new clients directory
+    cout << clientFileManager::erase_dir("../src/client/sync_dir") << endl;
     // Send packet signaling server to execute get_sync_dir with client info (username and socket)
     string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
     Packet get_sync_command = Packet(Packet::CMD_PACKET, Command::GET_SYNC_DIR, 1, client_info.c_str(), client_info.length());
     get_sync_command.send_packet(this->sock_cmd);
-
-}
-
-
-void clientComManager::download(std::string file_name)
-{
-    // Send packet signaling to server what file it wants to download
-    Packet download_command = Packet(Packet::CMD_PACKET, Command::DOWNLOAD, 1, (file_name + "\n").c_str(), file_name.length());
-    download_command.send_packet(this->sock_cmd);
-    FileTransfer::receive_file("../" + file_name, this->sock_fetch);
 }
 
 void clientComManager::receive_sync_dir_files() {
-    int client_socket = this->sock_fetch;
+    int client_socket = this->sock_cmd;
     FileTransfer receiver;
     while (true) {
         // Receive a packet
@@ -57,7 +60,7 @@ void clientComManager::receive_sync_dir_files() {
         std::string path;
         int total_paths = 0, index = 0;
 
-        if (std::getline(payload_stream, path, '\n') && 
+        if (std::getline(payload_stream, path, '\n') &&
             payload_stream >> total_paths && 
             payload_stream >> index) {
             // Log received information
@@ -73,12 +76,85 @@ void clientComManager::receive_sync_dir_files() {
             if (index + 1 == total_paths) {
                 std::cout << "All files received." << std::endl;
                 break;
+                return;
             }
         } else {
             std::cerr << "Error: Invalid payload format." << std::endl;
             break;
         }
     }
+    return;
+}
+void clientComManager::list_server() {
+    // Envia um pacote sinalizando ao servidor para executar a função de listar os tempos dos arquivos
+    string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
+    
+    // Cria o pacote com o tipo de comando para listar os tempos
+    Packet list_server_command = Packet(Packet::CMD_PACKET, Command::LIST_SERVER, 1, client_info.c_str(), client_info.length());
+    
+    // Envia o pacote ao servidor
+    list_server_command.send_packet(this->sock_cmd);
+}
+
+void clientComManager::receive_list_server_times() {
+    int client_socket = this->sock_cmd;
+
+    while (true) {
+        // Recebe um pacote do servidor
+        Packet received_packet = Packet::receive_packet(client_socket);
+
+        // Se o pacote não for um DATA_PACKET, significa que não há mais dados a receber
+        if (received_packet.get_type() != Packet::DATA_PACKET) {
+            std::cout << this->username + " received all file times information" << std::endl;
+            break;
+        }
+
+        // Extrai o payload do pacote
+        std::string payload(received_packet.get_payload(), received_packet.get_length());
+
+        // Divide o payload para extrair o caminho do arquivo e os tempos
+        std::istringstream payload_stream(payload);
+        int total_paths = 0, index = 0;
+        std::string path, mtime, atime, ctime;
+
+        // Lê os dados do payload
+        if (std::getline(payload_stream, path, '\n') &&
+            std::getline(payload_stream, mtime, '\n') && 
+            std::getline(payload_stream, atime, '\n') && 
+            std::getline(payload_stream, ctime, '\n') && 
+            payload_stream >> total_paths && 
+            payload_stream >> index ) {
+            
+            // Supondo que path seja um caminho completo do arquivo
+            std::filesystem::path file_path(path);  // Converte o caminho para um objeto path
+
+            // Loga a informação recebida
+            std::cout << "Received file times for: " << file_path.filename().string() << std::endl;
+            std::cout << "Modification time (MTime): " << mtime << std::endl;
+            std::cout << "Access time (ATime): " << atime << std::endl;
+            std::cout << "Change/Creation time (CTime): " << ctime << std::endl << std::endl;
+
+             // Check if all paths are received
+            if (index + 1 == total_paths) {
+                std::cout << "All files received." << std::endl;
+                break;
+                return;
+            }
+        } else {
+            std::cerr << "Error: Invalid payload format." << std::endl;
+            break;
+        }
+
+    }
+    return;
+}
+
+void clientComManager::download(std::string file_name)
+{
+    // Send packet signaling to server what file it wants to download
+    Packet download_command = Packet(Packet::CMD_PACKET, Command::DOWNLOAD, 1, (file_name + "\n").c_str(), file_name.length());
+    download_command.send_packet(this->sock_cmd);
+    FileTransfer::receive_file("../" + file_name, this->sock_cmd);
 }
 
 void clientComManager::start_sockets(){
@@ -122,8 +198,6 @@ void clientComManager::connect_sockets(int port, hostent* server){
             cout <<"fetch socket connected\n";
 
     }
-    
-    
 }
 
 void clientComManager::close_sockets(){
@@ -147,9 +221,28 @@ std::string clientComManager::execute_command(Command command) {
                 return std::string("Something went wrong: ") + e.what();
             } 
         case Command::LIST_CLIENT:
-            return "NOT IMPLEMENTED YET";
+            if (file_manager) {
+                std::vector<std::string> files = file_manager->list_files();
+                if (files.empty()) {
+                    std::cout << "O diretório sync_dir está vazio." << std::endl;
+                } else {
+                    std::cout << "Arquivos no diretório sync_dir:\n";
+                    for (const std::string& file : files) {
+                        std::cout << "- " << file << std::endl;
+                    }
+                }
+                return "Arquivos listados com sucesso.";
+            } else {
+                return "Erro: file_manager não configurado.";
+            }
         case Command::LIST_SERVER:
-            return "NOT IMPLEMENTED YET";
+            try {
+                list_server();
+                receive_list_server_times(); 
+                return "Everything ok.";
+            } catch (const std::exception& e) {
+                return std::string("Something went wrong: ") + e.what();
+            } 
         case Command::UPLOAD:
             return "NOT IMPLEMENTED YET";
         case Command::DOWNLOAD:
@@ -166,19 +259,36 @@ std::string clientComManager::execute_command(Command command) {
                 return std::string("Something went wrong: ") + e.what();
             } 
         case Command::DELETE:
-            return "NOT IMPLEMENTED YET";
-        case Command::EXIT:{ 
+            try {
+                string file_name;
+                cout << "\nInsira o nome do arquivo desejado: ";
+                cin >> file_name;
 
+                send_delete_request(file_name);
+                return "Everything ok.";
+            } catch (const std::exception& e) {
+                return std::string("Something went wrong: ") + e.what();
+            }
+        case Command::EXIT:{ 
             Packet exit_command = Packet(Packet::CMD_PACKET, Command::EXIT, 0, "", 0);
             exit_command.send_packet(this->sock_cmd);
             this->close_sockets();
             std::cout << " shutting down... bye bye" << std::endl;
-            std::exit(0);
             break;
         }
         default:
             return "UNKNOWN COMMAND! The code shouldn't arrive here, check get_command_from_string and valid_command_status for debugging, code: " + std::to_string(static_cast<int>(command));
     }
+}
+
+void clientComManager::await_sync()
+{
+    // Receive a packet
+    Packet received_packet = Packet::receive_packet(this->sock_fetch);
+    if (received_packet.get_type() != Packet::DATA_PACKET) {
+        return;
+    }
+    return;
 }
 
 int clientComManager::connect_client_to_server(int argc, char* argv[])
@@ -205,6 +315,12 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
     return 0;
 }
 
+
 // GETTERS & SETTERS
 std::string clientComManager::get_username(){ return this->username; }
 void clientComManager::set_username(std::string username){ this->username = username; }
+
+//Setter do file_manager
+void clientComManager::set_file_manager(clientFileManager* fm) {
+    this->file_manager = fm;
+}

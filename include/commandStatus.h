@@ -17,6 +17,7 @@ enum Command {
     LIST_CLIENT = 0x0005,
     EXIT = 0x0006,
     GET_SYNC_DIR = 0x0007,
+    NO_COMMAND = 0x0008
 };
 
 #endif // COMMAND_STATUS_H

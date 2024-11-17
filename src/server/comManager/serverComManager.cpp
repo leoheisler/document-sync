@@ -15,6 +15,8 @@
 #include "packet.h"
 #include "serverFileManager.h"
 #include <mutex>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 
 
@@ -34,7 +36,7 @@ void serverComManager::get_sync_dir()
 	if(total_paths == 0){
 		// If user sync dir is empty, warns client to not wait for file reception
 		Packet dont_receive_files(Packet::ERR, 1, 1, "", 0);
-		dont_receive_files.send_packet(this->client_fetch_socket);
+		dont_receive_files.send_packet(this->client_cmd_socket);
 		return;
 	}
 	
@@ -46,14 +48,65 @@ void serverComManager::get_sync_dir()
 		Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
 
 		// Send the packet
-		get_sync_command.send_packet(this->client_fetch_socket);
+		get_sync_command.send_packet(this->client_cmd_socket);
 
 		// Optional logging
 		std::cout << "Sent path: " << paths[i] << std::endl;
 
 		// Send the file using sender_reciever
-		FileTransfer::send_file(paths[i], this->client_fetch_socket);
+		FileTransfer::send_file(paths[i], this->client_cmd_socket);
 	}
+}
+
+void serverComManager::list_server() {
+    cout << "received list server command from user: " + this->username << std::endl;
+    
+    // Obtém os caminhos dos arquivos no diretório de sincronização do usuário
+    std::vector<std::string> paths = serverFileManager::get_sync_dir_paths(this->username);
+    int total_paths = paths.size();
+    
+    // Se não houver arquivos no diretório de sincronização
+    if (total_paths == 0) {
+        // Informa ao cliente que não há arquivos para listar
+        Packet no_files(Packet::ERR, 1, 1, "No files to list", 0);
+        no_files.send_packet(this->client_cmd_socket);
+        return;
+    }
+
+    // Para cada arquivo, calcula os tempos e envia para o cliente
+    for (size_t i = 0; i < total_paths; ++i) {
+        // Obtém os tempos MAC (modification time, access time, change/creation time)
+        struct stat file_stat;
+        if (stat(paths[i].c_str(), &file_stat) == -1) {
+            // Se falhar ao obter os tempos do arquivo, envia uma mensagem de erro
+            std::string error_msg = "Error retrieving times for file: " + paths[i];
+            Packet error_packet(Packet::ERR, 1, 1, error_msg.c_str(), error_msg.size());
+            error_packet.send_packet(this->client_cmd_socket);
+            continue;
+        }
+
+        // Formatação dos tempos como strings
+        std::ostringstream mtime_stream, atime_stream, ctime_stream;
+        mtime_stream << std::put_time(std::localtime(&file_stat.st_mtime), "%Y-%m-%d %H:%M:%S");
+        atime_stream << std::put_time(std::localtime(&file_stat.st_atime), "%Y-%m-%d %H:%M:%S");
+        ctime_stream << std::put_time(std::localtime(&file_stat.st_ctime), "%Y-%m-%d %H:%M:%S");
+
+        // Formata a mensagem para enviar
+        std::string file_info = paths[i] + "\n" +
+                                mtime_stream.str() + "\n" +
+                                atime_stream.str() + "\n" +
+                                ctime_stream.str() + "\n" +
+								std::to_string(total_paths) + "\n" + std::to_string(i);
+
+        // Cria um pacote com a informação do arquivo
+        Packet file_info_packet(Packet::DATA_PACKET, 1, 1, file_info.c_str(), file_info.size());
+
+        // Envia o pacote para o cliente
+        file_info_packet.send_packet(this->client_cmd_socket);
+
+        // Log opcional para monitoramento
+        std::cout << "Sent file info: " << file_info << std::endl;
+    }
 }
 
 void serverComManager::end_communications(){
@@ -102,7 +155,7 @@ void serverComManager::await_command_packet()
 				string file_name = strtok(command_packet.get_payload(), "\n");
 				string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
 				string file_path = sync_dir_path + "/" + file_name;
-				FileTransfer::send_file(file_path, this->client_fetch_socket);
+				FileTransfer::send_file(file_path, this->client_cmd_socket);
 				break;
 			  }
 
@@ -110,6 +163,15 @@ void serverComManager::await_command_packet()
 				get_sync_dir();
 				break;
         	}
+			case Command::DELETE:{
+				cout << "received delete command from user: " + this->username << std::endl;
+				string file_name = strtok(command_packet.get_payload(), "\n");
+				string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
+				string file_path = sync_dir_path + "/" + file_name;
+				// delete the file in file_path path.
+				cout << serverFileManager::delete_file(file_path) << endl;
+				break;
+			}
 			case Command::EXIT:{
 				cout << "recieve exit command from user: " + this->username <<std::endl;
 
@@ -121,6 +183,13 @@ void serverComManager::await_command_packet()
 				end_communications();
 				exit = true;
 				break;
+			}
+			// Comando para listar arquivos no servidor
+            case Command::LIST_SERVER: {
+				list_server();
+                std::cout << "received list_server command from user: " + this->username << std::endl;
+                
+                break;
 			}
 		}
 	}
