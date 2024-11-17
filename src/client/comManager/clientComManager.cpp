@@ -60,7 +60,7 @@ void clientComManager::receive_sync_dir_files() {
         std::string path;
         int total_paths = 0, index = 0;
 
-        if (std::getline(payload_stream, path, '\n') && 
+        if (std::getline(payload_stream, path, '\n') &&
             payload_stream >> total_paths && 
             payload_stream >> index) {
             // Log received information
@@ -135,8 +135,6 @@ void clientComManager::connect_sockets(int port, hostent* server){
             cout <<"fetch socket connected\n";
 
     }
-    
-    
 }
 
 void clientComManager::close_sockets(){
