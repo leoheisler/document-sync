@@ -110,6 +110,15 @@ void serverComManager::await_command_packet()
 				get_sync_dir();
 				break;
         	}
+			case Command::DELETE:{
+				cout << "received delete command from user: " + this->username << std::endl;
+				string file_name = strtok(command_packet.get_payload(), "\n");
+				string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
+				string file_path = sync_dir_path + "/" + file_name;
+				// delete the file in file_path path.
+				cout << serverFileManager::delete_file(file_path) << endl;
+				break;
+			}
 			case Command::EXIT:{
 				cout << "recieve exit command from user: " + this->username <<std::endl;
 

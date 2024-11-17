@@ -51,7 +51,7 @@ class client
                     case 1: command = Command::UPLOAD; break;  
                     case 2: command = Command::DOWNLOAD; break;
                     case 3: command = Command::DELETE; break;
-                    case 4: command = Command:: LIST_SERVER; break;
+                    case 4: command = Command::LIST_SERVER; break;
                     case 5: command = Command::LIST_CLIENT; break;
                     case 6: command = Command::EXIT; exit = true; break;
                     case 7: command = Command::GET_SYNC_DIR; break;

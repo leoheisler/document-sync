@@ -20,6 +20,17 @@ using namespace std;
 clientComManager::clientComManager(/* args */){};
 
 // PRIVATE METHODS
+
+// asks for the file that will be deleted and sends request with file and username
+// inotify will probably listen to changes in server and update local directories on clients..
+void clientComManager::send_delete_request(std::string file_name)
+{
+    // Send packet signaling to server what file it wants to delete.
+    Packet delete_command = Packet(Packet::CMD_PACKET, Command::DELETE, 1, (file_name + "\n").c_str(), file_name.length());
+    delete_command.send_packet(this->sock_cmd);
+}
+
+
 void clientComManager::get_sync_dir()
 {
     // Send packet signaling server to execute get_sync_dir with client info (username and socket)
@@ -166,7 +177,16 @@ std::string clientComManager::execute_command(Command command) {
                 return std::string("Something went wrong: ") + e.what();
             } 
         case Command::DELETE:
-            return "NOT IMPLEMENTED YET";
+            try {
+                string file_name;
+                cout << "\nInsira o nome do arquivo desejado: ";
+                cin >> file_name;
+
+                send_delete_request(file_name);
+                return "Everything ok.";
+            } catch (const std::exception& e) {
+                return std::string("Something went wrong: ") + e.what();
+            }
         case Command::EXIT:{ 
             Packet exit_command = Packet(Packet::CMD_PACKET, Command::EXIT, 0, "", 0);
             exit_command.send_packet(this->sock_cmd);
