@@ -8,11 +8,14 @@
 class FileTransfer {
     public:
         static void send_file(const std::string& file_path, int socket) {
-            std::ifstream file(file_path, std::ios::binary | std::ios::ate);
+            ifstream file(file_path, std::ios::binary | std::ios::ate);
 
             // File initialization
             if (!file.is_open()) {
-                std::cerr << "Error: Cannot open file " << file_path << std::endl;
+                // If can't open file, send a warning packet to client to not wait for reception of file
+                cerr << "Error: Cannot open file " << file_path << std::endl;
+                Packet dont_receive_file = Packet();
+                dont_receive_file.send_packet(socket);
                 return;
             }
             std::streamsize file_size = file.tellg(); 
@@ -29,13 +32,13 @@ class FileTransfer {
                 int payload_size = file.gcount(); 
                 Packet packet(Packet::DATA_PACKET, seq_num++, total_packets, buffer, payload_size);
                 packet.send_packet(socket);
-                std::memset(buffer, 0, MAX_PAYLOAD_SIZE); 
+                memset(buffer, 0, MAX_PAYLOAD_SIZE); 
                 //printf("Packet length file sent: %d\n", packet.getLength());
                 file.read(buffer, MAX_PAYLOAD_SIZE);
             }
 
             file.close();
-            std::cout << "File sent successfully!" << std::endl;
+            cout << "File sent successfully!" << std::endl;
         }
 
         static void receive_file(const std::string& output_path, int socket) {
@@ -43,7 +46,7 @@ class FileTransfer {
             
             // File initialization
             if (!file.is_open()) {
-                std::cerr << "Error: Cannot create file " << output_path << std::endl;
+                cerr << "Error: Cannot create file " << output_path << std::endl;
                 return;
             }
 
@@ -53,6 +56,13 @@ class FileTransfer {
             // Receiving file in fragments of MAX_PAYLOAD_SIZE bytes
             while (true) {         
                 Packet packet = Packet::receive_packet(socket);
+                if (packet.type == Packet::ERR) 
+                {
+                    file.close();
+                    remove(output_path.c_str()); 
+                    cerr << "Error: Received error packet, file transmission aborted." << std::endl;
+                    return;
+                }
                 total_packets = packet.total_size; 
 
                 // Write the received payload to the file
@@ -61,13 +71,13 @@ class FileTransfer {
                 seq_num++;
                 // Check for end-of-transmission signal 
                 if (seq_num == total_packets) {
-                    std::cout << "Received end of transmission packet from client" << std::endl;
+                    cout << "Received end of transmission packet from client" << std::endl;
                     break; 
                 }
             }
 
             file.close();
-            std::cout << "File received successfully!" << std::endl;
+            cout << "File received successfully!" << std::endl;
         }
 };
 

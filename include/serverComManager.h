@@ -22,6 +22,7 @@ class serverComManager
         // Communication Methods
         void start_communications();
         void end_communications();
+        void get_sync_dir();
        
         
     public:

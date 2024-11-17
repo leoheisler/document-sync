@@ -45,8 +45,7 @@ void clientComManager::receive_sync_dir_files() {
         // Receive a packet
         Packet received_packet = Packet::receive_packet(client_socket);
         if (received_packet.get_type() != Packet::DATA_PACKET) {
-            // Handle unexpected packet type (optional)
-            std::cerr << "Error: Received an unexpected packet type." << std::endl;
+            cout << this->username + " sync dir is empty" << endl;
             break;
         }
 
@@ -81,8 +80,6 @@ void clientComManager::receive_sync_dir_files() {
         }
     }
 }
-
-
 
 void clientComManager::start_sockets(){
 
@@ -143,10 +140,8 @@ std::string clientComManager::execute_command(Command command) {
     switch (command) {
         case Command::GET_SYNC_DIR:
             try {
-
-                get_sync_dir(); // Call the function that might throw
+                get_sync_dir();
                 receive_sync_dir_files(); 
-
                 return "Everything ok.";
             } catch (const std::exception& e) {
                 return std::string("Something went wrong: ") + e.what();
@@ -205,8 +200,7 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
 
     // CONNECT
 	connect_sockets(port,server);
-    //SEND dir files
-    get_sync_dir();
+    execute_command(Command::GET_SYNC_DIR);
 
     return 0;
 }
