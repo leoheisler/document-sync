@@ -26,20 +26,10 @@ void clientComManager::get_sync_dir()
     string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
     Packet get_sync_command = Packet(Packet::CMD_PACKET, Command::GET_SYNC_DIR, 1, client_info.c_str(), client_info.length());
     get_sync_command.send_packet(this->sock_cmd);
-
-}
-
-
-void clientComManager::download(std::string file_name)
-{
-    // Send packet signaling to server what file it wants to download
-    Packet download_command = Packet(Packet::CMD_PACKET, Command::DOWNLOAD, 1, (file_name + "\n").c_str(), file_name.length());
-    download_command.send_packet(this->sock_cmd);
-    FileTransfer::receive_file("../" + file_name, this->sock_fetch);
 }
 
 void clientComManager::receive_sync_dir_files() {
-    int client_socket = this->sock_fetch;
+    int client_socket = this->sock_cmd;
     FileTransfer receiver;
     while (true) {
         // Receive a packet
@@ -73,12 +63,22 @@ void clientComManager::receive_sync_dir_files() {
             if (index + 1 == total_paths) {
                 std::cout << "All files received." << std::endl;
                 break;
+                return;
             }
         } else {
             std::cerr << "Error: Invalid payload format." << std::endl;
             break;
         }
     }
+    return;
+}
+
+void clientComManager::download(std::string file_name)
+{
+    // Send packet signaling to server what file it wants to download
+    Packet download_command = Packet(Packet::CMD_PACKET, Command::DOWNLOAD, 1, (file_name + "\n").c_str(), file_name.length());
+    download_command.send_packet(this->sock_cmd);
+    FileTransfer::receive_file("../" + file_name, this->sock_cmd);
 }
 
 void clientComManager::start_sockets(){
@@ -168,17 +168,25 @@ std::string clientComManager::execute_command(Command command) {
         case Command::DELETE:
             return "NOT IMPLEMENTED YET";
         case Command::EXIT:{ 
-
             Packet exit_command = Packet(Packet::CMD_PACKET, Command::EXIT, 0, "", 0);
             exit_command.send_packet(this->sock_cmd);
             this->close_sockets();
             std::cout << " shutting down... bye bye" << std::endl;
-            std::exit(0);
             break;
         }
         default:
             return "UNKNOWN COMMAND! The code shouldn't arrive here, check get_command_from_string and valid_command_status for debugging, code: " + std::to_string(static_cast<int>(command));
     }
+}
+
+void clientComManager::await_sync()
+{
+    // Receive a packet
+    Packet received_packet = Packet::receive_packet(this->sock_fetch);
+    if (received_packet.get_type() != Packet::DATA_PACKET) {
+        return;
+    }
+    return;
 }
 
 int clientComManager::connect_client_to_server(int argc, char* argv[])

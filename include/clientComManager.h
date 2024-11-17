@@ -28,6 +28,7 @@ class clientComManager
 
         // Communication Methods
         int connect_client_to_server(int argc, char* argv[]);
+        void await_sync();
         
         // Getters & Setters
         std::string get_username();

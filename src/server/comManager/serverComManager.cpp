@@ -34,7 +34,7 @@ void serverComManager::get_sync_dir()
 	if(total_paths == 0){
 		// If user sync dir is empty, warns client to not wait for file reception
 		Packet dont_receive_files(Packet::ERR, 1, 1, "", 0);
-		dont_receive_files.send_packet(this->client_fetch_socket);
+		dont_receive_files.send_packet(this->client_cmd_socket);
 		return;
 	}
 	
@@ -46,13 +46,13 @@ void serverComManager::get_sync_dir()
 		Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
 
 		// Send the packet
-		get_sync_command.send_packet(this->client_fetch_socket);
+		get_sync_command.send_packet(this->client_cmd_socket);
 
 		// Optional logging
 		std::cout << "Sent path: " << paths[i] << std::endl;
 
 		// Send the file using sender_reciever
-		FileTransfer::send_file(paths[i], this->client_fetch_socket);
+		FileTransfer::send_file(paths[i], this->client_cmd_socket);
 	}
 }
 
@@ -102,7 +102,7 @@ void serverComManager::await_command_packet()
 				string file_name = strtok(command_packet.get_payload(), "\n");
 				string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
 				string file_path = sync_dir_path + "/" + file_name;
-				FileTransfer::send_file(file_path, this->client_fetch_socket);
+				FileTransfer::send_file(file_path, this->client_cmd_socket);
 				break;
 			  }
 
