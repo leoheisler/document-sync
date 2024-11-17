@@ -147,7 +147,20 @@ std::string clientComManager::execute_command(Command command) {
                 return std::string("Something went wrong: ") + e.what();
             } 
         case Command::LIST_CLIENT:
-            return "NOT IMPLEMENTED YET";
+            if (file_manager) {
+                std::vector<std::string> files = file_manager->list_files();
+                if (files.empty()) {
+                    std::cout << "O diretório sync_dir está vazio." << std::endl;
+                } else {
+                    std::cout << "Arquivos no diretório sync_dir:\n";
+                    for (const std::string& file : files) {
+                        std::cout << "- " << file << std::endl;
+                    }
+                }
+                return "Arquivos listados com sucesso.";
+            } else {
+                return "Erro: file_manager não configurado.";
+            }
         case Command::LIST_SERVER:
             return "NOT IMPLEMENTED YET";
         case Command::UPLOAD:
@@ -216,3 +229,8 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
 // GETTERS & SETTERS
 std::string clientComManager::get_username(){ return this->username; }
 void clientComManager::set_username(std::string username){ this->username = username; }
+
+//Setter do file_manager
+void clientComManager::set_file_manager(clientFileManager* fm) {
+    this->file_manager = fm;
+}

@@ -6,6 +6,7 @@
 #include <netdb.h>
 #include <clientFileManager.h>
 #include "commandStatus.h"
+
 class clientComManager
 {
     private: 
@@ -13,6 +14,9 @@ class clientComManager
         int sock_cmd = -1;
         int sock_upload = -1;
         int sock_fetch = -1;
+
+        // Ponteiro para file_manager, inicialmente nulo
+        clientFileManager* file_manager = nullptr;
 
         void get_sync_dir();
         void download(std::string file_name);
@@ -34,6 +38,9 @@ class clientComManager
         std::string get_username();
         void set_username(std::string username);
         void receive_sync_dir_files();
+
+        // Setter, para poder chamar o list_files dentro do ComManager
+        void set_file_manager(clientFileManager* fm); 
 
 };
 #endif

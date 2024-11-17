@@ -77,7 +77,10 @@ class client
         }
 
     public:
-        client(){};
+        client(){
+            // Configurando o file_manager no communication_manager
+            communication_manager.set_file_manager(&file_manager);
+        };
         void start(int argc, char* argv[]){
             //create sync_dir and connect sockets
             file_manager.create_client_sync_dir();
