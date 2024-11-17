@@ -133,7 +133,7 @@ void clientComManager::close_sockets(){
     close(this->sock_cmd);
     close(this->sock_fetch);
     close(this->sock_upload);
-    cout << "all sockets closed";
+    cout << "All sockets closed,";
 }
 // PUBLIC METHODS
 
@@ -172,10 +172,15 @@ std::string clientComManager::execute_command(Command command) {
             } 
         case Command::DELETE:
             return "NOT IMPLEMENTED YET";
-        case Command::EXIT:
-            std::cout << "Shutting down... bye bye" << std::endl;
+        case Command::EXIT:{ 
+
+            Packet exit_command = Packet(Packet::CMD_PACKET, Command::EXIT, 0, "", 0);
+            exit_command.send_packet(this->sock_cmd);
+            this->close_sockets();
+            std::cout << " shutting down... bye bye" << std::endl;
             std::exit(0);
             break;
+        }
         default:
             return "UNKNOWN COMMAND! The code shouldn't arrive here, check get_command_from_string and valid_command_status for debugging, code: " + std::to_string(static_cast<int>(command));
     }

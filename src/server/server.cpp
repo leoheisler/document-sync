@@ -38,22 +38,22 @@ serverStatus bind_server_socket(int* server_socket){
 }
 
 void connection_handler(int server_socket, int first_contact_socket,ClientList* client_device_list){
-	//cria um gerente de comunicação para o fluxo
+	//create a server comm manager for the connection
 	serverComManager server_comm(client_device_list);
 
-	//envia um pacote dizendo que o primeiro contato foi estabelecido e o cliente pode enviar as outras conexões
+	//send a handshake to client
 	Packet handshake_packet(first_contact_socket);
 	handshake_packet.send_packet(first_contact_socket);
 	
-	//connecta as outras conexões
+	//connect the other sockets
 	server_comm.bind_client_sockets(server_socket,first_contact_socket);
 	
-	//permite o servidor aceitar outro cliente
+	//let other threads be created
 	connect_hand.unlock();
 	
-	//thread fica em loop de comandos
-	
+	//command loop
 	server_comm.await_command_packet();
+	cout << "liberating memory and ending thread for user: " + server_comm.get_username() << std::endl;
 }
 
 

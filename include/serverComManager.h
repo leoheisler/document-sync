@@ -21,6 +21,7 @@ class serverComManager
 
         // Communication Methods
         void start_communications();
+        void end_communications();
        
         
     public:
@@ -28,6 +29,7 @@ class serverComManager
         serverComManager(ClientList* client_list);
         void await_command_packet();
         serverStatus bind_client_sockets(int server_socket, int first_comm_socket);
+        std::string get_username();
         
 
 };

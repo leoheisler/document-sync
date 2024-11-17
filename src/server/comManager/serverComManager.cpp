@@ -14,17 +14,23 @@
 #include "fileTransfer.h"
 #include "packet.h"
 #include "serverFileManager.h"
+#include <mutex>
 
 
 
 
 #define PORT 4000
-
+std::mutex dell_user;
 // CONSTRUCTOR
 serverComManager::serverComManager(ClientList* client_list){ this->client_list = client_list;};
 
 // PRIVATE METHODS
-
+void serverComManager::end_communications(){
+	close(this->client_cmd_socket);
+	close(this->client_fetch_socket);
+	close(this->client_upload_socket);
+	cout << "All sockets closed for user:" + this->username <<std::endl;
+}
 void serverComManager::start_communications()
 {
 	
@@ -52,14 +58,15 @@ void serverComManager::start_communications()
 void serverComManager::await_command_packet()
 {
 	serverFileManager file_manager; 
-	while(true) {
+	bool exit = false;
+	while(!exit) {
 		// Wait to receive a command packet from client
 		Packet command_packet = Packet::receive_packet(this->client_cmd_socket);
 		// Determine what to do based on the command packet received
 		switch(command_packet.get_seqn()){
 
 			case Command::DOWNLOAD: {
-				cout << "recebi o comando de download do user " + this->username << std::endl;
+				cout << "recieved download command from user: " + this->username << std::endl;
 				string file_name = strtok(command_packet.get_payload(), "\n");
 				string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
 				string file_path = sync_dir_path + "/" + file_name;
@@ -68,7 +75,7 @@ void serverComManager::await_command_packet()
 			  }
 
 			case Command::GET_SYNC_DIR:{
-				cout << "recebi o comando de get sync dir do user " + this->username <<std::endl;
+				cout << "recieved get sync dir command from user: " + this->username <<std::endl;
 				
 				std::vector<std::string> paths = file_manager.get_sync_dir_paths(this->username);
 				int total_paths = paths.size();
@@ -88,8 +95,20 @@ void serverComManager::await_command_packet()
 					// Send the file using sender_reciever
 					FileTransfer::send_file(paths[i], this->client_fetch_socket);
 				}
-			break;
+				break;
         	}
+			case Command::EXIT:{
+				cout << "recieve exit command from user: " + this->username <<std::endl;
+
+				//remove from server list this clients' connection
+				dell_user.lock();
+				this->client_list->remove_device(this->username,this->client_cmd_socket);
+				dell_user.unlock();
+
+				end_communications();
+				exit = true;
+				break;
+			}
 		}
 	}
 }
@@ -111,4 +130,8 @@ serverStatus serverComManager::bind_client_sockets(int server_socket, int first_
 	start_communications();	 
 	return serverStatus::OK;
 		
+}
+
+std::string serverComManager::get_username(){
+	return this->username;
 }

@@ -86,6 +86,41 @@ class ClientList {
                 current = current->get_next();
             }
         }
+
+        void remove_device(const string& uname, int device_sock) {
+            ClientNode* current = head;
+            ClientNode* prev = nullptr;
+
+            while (current != nullptr) {
+                if (current->get_username() == uname) {
+                    // Verifica e remove o socket correspondente
+                    if (current->get_socket_device1() == device_sock) {
+                        current->set_socket_device1(0);
+                    } else if (current->get_socket_device2() == device_sock) {
+                        current->set_socket_device2(0);
+                    } else {
+                        throw std::string("DEVICE NOT FOUND FOR USER");
+                    }
+
+                    // Remove o cliente se ambos os dispositivos estiverem desconectados
+                    if (current->get_socket_device1() == 0 && current->get_socket_device2() == 0) {
+                        if (prev == nullptr) {  // Removendo o primeiro nó
+                            head = current->get_next();
+                        } else {  // Removendo um nó intermediário ou final
+                            prev->set_next(current->get_next());
+                        }
+                        delete current;  // Libera a memória
+                    }
+
+                    return;  // Finaliza após encontrar e tratar o cliente
+                }
+
+                prev = current;
+                current = current->get_next();  // Avança para o próximo cliente
+            }
+
+            throw std::string("CLIENT NOT FOUND");
+        }
 };
 
 #endif // CLIENTLIST_H
