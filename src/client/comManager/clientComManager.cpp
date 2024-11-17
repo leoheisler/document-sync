@@ -33,6 +33,7 @@ void clientComManager::download(std::string file_name)
 {
     // Send packet signaling to server what file it wants to download
     Packet download_command = Packet(Packet::CMD_PACKET, Command::DOWNLOAD, 1, (file_name + "\n").c_str(), file_name.length());
+    download_command.send_packet(this->sock_cmd);
     FileTransfer::receive_file("../" + file_name, this->sock_fetch);
 }
 
