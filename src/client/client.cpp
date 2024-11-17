@@ -40,7 +40,7 @@ class client
             cout << "\nDigite o número da opção desejada: ";
             cin >> option;
             switch(option){
-                case 1: return Command::UPLOAD; 
+                case 1: return Command::UPLOAD;  
                 case 2: return Command::DOWNLOAD;
                 case 3: return Command::DELETE;
                 case 4: return Command:: LIST_SERVER;
