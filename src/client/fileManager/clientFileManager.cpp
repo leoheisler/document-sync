@@ -22,6 +22,19 @@ void clientFileManager::create_client_sync_dir(){
     
 }
 
+std::string clientFileManager::erase_dir(std::string path){
+    try {
+        for (const auto& entry : fs::directory_iterator(path)) {
+            if (fs::is_regular_file(entry)) {
+                fs::remove(entry);
+            }
+        }
+        return "Erased older directory.";
+    } catch (const fs::filesystem_error& e) {
+        return "Error when erasing directory.";
+    }
+}
+
 std::vector<std::string> clientFileManager::list_files() {
     std::vector<std::string> files;
     std::string sync_dir = "../src/client/sync_dir";

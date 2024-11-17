@@ -33,6 +33,8 @@ void clientComManager::send_delete_request(std::string file_name)
 
 void clientComManager::get_sync_dir()
 {
+    //first erase everything that was in clint sync_dir, we dont want other clients files in new clients directory
+    cout << clientFileManager::erase_dir("../src/client/sync_dir") << endl;
     // Send packet signaling server to execute get_sync_dir with client info (username and socket)
     string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
     Packet get_sync_command = Packet(Packet::CMD_PACKET, Command::GET_SYNC_DIR, 1, client_info.c_str(), client_info.length());

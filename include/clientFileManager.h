@@ -18,6 +18,7 @@ class clientFileManager
         clientFileManager();
         void create_client_sync_dir();
         std::vector<std::string> list_files();
+        static std::string erase_dir(std::string path);
 };  
 #endif
 
