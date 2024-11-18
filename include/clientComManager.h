@@ -5,7 +5,21 @@
 #include <sstream>
 #include <netdb.h>
 #include <clientFileManager.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <iostream>
+
+
+
 #include "commandStatus.h"
+#include "fileTransfer.h"
+#include "packet.h"
 
 class clientComManager
 {
@@ -23,12 +37,14 @@ class clientComManager
         void list_server();
         void receive_list_server_times();
         void download(std::string file_name);
+        void delete_file_in_sync_dir(std::string file_name);
         void start_sockets();
         void connect_sockets(int port, hostent* server);
         void close_sockets();
+        void upload(std::string file_path);
     public:
         // Constructor Method
-        clientComManager(/* args */);
+        clientComManager();
 
         // Send packet based on user request
         std::string execute_command(Command command);

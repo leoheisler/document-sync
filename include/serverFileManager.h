@@ -4,6 +4,13 @@
 #include <filesystem>
 #include <vector> 
 #include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <iostream>
+#include <vector>
+
 class serverFileManager
 {
     private: 

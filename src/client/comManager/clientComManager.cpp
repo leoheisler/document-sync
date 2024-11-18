@@ -1,34 +1,21 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <iostream>
-
 #include "clientComManager.h" 
-#include "commandStatus.h"
-#include "fileTransfer.h"
-#include "packet.h"
 
 using namespace std;
 
 // CONSTRUCTOR
-clientComManager::clientComManager(/* args */){};
+clientComManager::clientComManager(){
+ 
+};
 
 // PRIVATE METHODS
 
 // asks for the file that will be deleted and sends request with file and username
-// inotify will probably listen to changes in server and update local directories on clients..
 void clientComManager::send_delete_request(std::string file_name)
 {
     // Send packet signaling to server what file it wants to delete.
     Packet delete_command = Packet(Packet::CMD_PACKET, Command::DELETE, 1, (file_name + "\n").c_str(), file_name.length());
     delete_command.send_packet(this->sock_cmd);
 }
-
 
 void clientComManager::get_sync_dir()
 {
@@ -67,6 +54,9 @@ void clientComManager::receive_sync_dir_files() {
 
             size_t last_slash = path.find_last_of("/\\");
             std::string filename = (last_slash != std::string::npos) ? path.substr(last_slash) : path;
+            //put the file in the queue
+            //this->file_manager->add_path(path);
+
             // Receive the file using the extracted path
             cout << "will store at: ../src/client/sync_dir" + filename << endl;
             receiver.receive_file("../src/client/sync_dir" + filename, client_socket);
@@ -85,38 +75,39 @@ void clientComManager::receive_sync_dir_files() {
     return;
 }
 void clientComManager::list_server() {
-    // Envia um pacote sinalizando ao servidor para executar a função de listar os tempos dos arquivos
+    // Sends a packet signaling the server to execute the function for listing file times
     string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
     
-    // Cria o pacote com o tipo de comando para listar os tempos
+    // Creates the packet with the command type for listing the times
     Packet list_server_command = Packet(Packet::CMD_PACKET, Command::LIST_SERVER, 1, client_info.c_str(), client_info.length());
     
-    // Envia o pacote ao servidor
+    // Sends the packet to the server
     list_server_command.send_packet(this->sock_cmd);
 }
+
 
 void clientComManager::receive_list_server_times() {
     int client_socket = this->sock_cmd;
 
     while (true) {
-        // Recebe um pacote do servidor
+        // Receives a packet from the server
         Packet received_packet = Packet::receive_packet(client_socket);
 
-        // Se o pacote não for um DATA_PACKET, significa que não há mais dados a receber
+        // If the packet is not a DATA_PACKET, it means there are no more data to receive
         if (received_packet.get_type() != Packet::DATA_PACKET) {
             std::cout << this->username + " received all file times information" << std::endl;
             break;
         }
 
-        // Extrai o payload do pacote
+        // Extracts the payload from the packet
         std::string payload(received_packet.get_payload(), received_packet.get_length());
 
-        // Divide o payload para extrair o caminho do arquivo e os tempos
+        // Splits the payload to extract the file path and times
         std::istringstream payload_stream(payload);
         int total_paths = 0, index = 0;
         std::string path, mtime, atime, ctime;
 
-        // Lê os dados do payload
+        // Reads the data from the payload
         if (std::getline(payload_stream, path, '\n') &&
             std::getline(payload_stream, mtime, '\n') && 
             std::getline(payload_stream, atime, '\n') && 
@@ -124,16 +115,16 @@ void clientComManager::receive_list_server_times() {
             payload_stream >> total_paths && 
             payload_stream >> index ) {
             
-            // Supondo que path seja um caminho completo do arquivo
-            std::filesystem::path file_path(path);  // Converte o caminho para um objeto path
+            // Assuming path is the complete file path
+            std::filesystem::path file_path(path);  // Converts the path to a `path` object
 
-            // Loga a informação recebida
+            // Logs the received information
             std::cout << "Received file times for: " << file_path.filename().string() << std::endl;
             std::cout << "Modification time (MTime): " << mtime << std::endl;
             std::cout << "Access time (ATime): " << atime << std::endl;
             std::cout << "Change/Creation time (CTime): " << ctime << std::endl << std::endl;
 
-             // Check if all paths are received
+            // Check if all paths are received
             if (index + 1 == total_paths) {
                 std::cout << "All files received." << std::endl;
                 break;
@@ -143,9 +134,24 @@ void clientComManager::receive_list_server_times() {
             std::cerr << "Error: Invalid payload format." << std::endl;
             break;
         }
-
     }
     return;
+}
+
+void clientComManager::upload(std::string file_path)
+{
+    // Send packet signaling to server what file it wants to upload
+    Packet upload_command = Packet(Packet::CMD_PACKET, Command::UPLOAD, 1, file_path.c_str(), file_path.length());
+    upload_command.send_packet(this->sock_cmd);
+
+    // Upload file to server
+    FileTransfer::send_file(file_path, this->sock_upload);   
+}
+
+void clientComManager::delete_file_in_sync_dir(std::string file_name)
+{
+    string file_path = "../src/client/sync_dir/" + file_name;
+    this->file_manager->delete_file(file_path);
 }
 
 void clientComManager::download(std::string file_name)
@@ -158,12 +164,15 @@ void clientComManager::download(std::string file_name)
 
 void clientComManager::start_sockets(){
 
+    //sock_cmd used for the client to send commands like: download, upload, delete, list_server, list_server, exit, two-way communication
     if ((this->sock_cmd = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
         cout << "ERROR opening cmd socket\n";
     
+    //sock_upload used for the client to upload files from inotify events syncs into the server
     if ((this->sock_upload = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
         cout << "ERROR opening upload socket\n";
 
+    //sock_fetch used for the client to download files from the server if synchronization needed
     if ((this->sock_fetch = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
         cout << "ERROR opening fetch socket\n";
     
@@ -243,7 +252,17 @@ std::string clientComManager::execute_command(Command command) {
                 return std::string("Something went wrong: ") + e.what();
             } 
         case Command::UPLOAD:
-            return "NOT IMPLEMENTED YET";
+            try {
+                // receives in the command prompt the name of the archive
+                string file_path;
+                cout << "\nInsira o path do arquivo desejado: ";
+                cin >> file_path;
+
+                upload(file_path);
+                return "Everything ok.";
+            } catch (const std::exception& e) {
+                return std::string("Something went wrong: ") + e.what();
+            }  
         case Command::DOWNLOAD:
             try {           
                 // receives in the command prompt the name of the archive
@@ -260,10 +279,10 @@ std::string clientComManager::execute_command(Command command) {
         case Command::DELETE:
             try {
                 string file_name;
-                cout << "\nInsira o nome do arquivo desejado: ";
+                cout << "\nInsira o nome do file que deseja deletar: ";
                 cin >> file_name;
 
-                send_delete_request(file_name);
+                delete_file_in_sync_dir(file_name);
                 return "Everything ok.";
             } catch (const std::exception& e) {
                 return std::string("Something went wrong: ") + e.what();
@@ -282,12 +301,19 @@ std::string clientComManager::execute_command(Command command) {
 
 void clientComManager::await_sync()
 {
-    // Receive a packet
+    // Receive a packet containing the name of the file to be inserted in sync dir
     Packet received_packet = Packet::receive_packet(this->sock_fetch);
     if (received_packet.get_type() != Packet::DATA_PACKET) {
         return;
+    }else{
+        // Construct file_path from file_name and wait to receive the file from server
+        string file_name = strtok(received_packet.get_payload(), "\n");
+        string sync_dir_path = "../src/client/sync_dir";
+        string file_path = sync_dir_path + "/" + file_name;
+
+        FileTransfer::receive_file(file_path, this->sock_fetch);
+        return;
     }
-    return;
 }
 
 int clientComManager::connect_client_to_server(int argc, char* argv[])
@@ -322,4 +348,5 @@ void clientComManager::set_username(std::string username){ this->username = user
 //Setter do file_manager
 void clientComManager::set_file_manager(clientFileManager* fm) {
     this->file_manager = fm;
+    cout << "settei o file_manager" <<endl;
 }

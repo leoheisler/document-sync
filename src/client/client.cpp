@@ -13,7 +13,7 @@ using namespace std;
 class client
 {
     private:
-        clientFileManager file_manager;
+        clientFileManager *file_manager;
         clientComManager communication_manager;
 
         void command_input_interface(){
@@ -46,15 +46,15 @@ class client
 
         void upload_to_server()
         {
-            // inotify for sync
+            // Inotify for client->server sync
             while(true){
-                file_manager.check_dir_updates();
+                file_manager->check_dir_updates();
             }
         }
 
         void download_from_server()
         {
-        
+            // Receive loop for server->
             while(true){
                 communication_manager.await_sync();
             }
@@ -63,12 +63,11 @@ class client
     public:
         client(){
             // Configurando o file_manager no communication_manager
-            communication_manager.set_file_manager(&file_manager);
-            
         };
         void start(int argc, char* argv[]){
             //create sync_dir and connect sockets
-            file_manager.create_client_sync_dir();
+            file_manager->create_client_sync_dir();
+            communication_manager.set_file_manager(file_manager);
             communication_manager.connect_client_to_server(argc,argv);
             cout << flush;
 

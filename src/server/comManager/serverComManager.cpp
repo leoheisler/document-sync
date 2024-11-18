@@ -1,24 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h> 
-#include <iostream>
-
 #include "serverComManager.h" 
-#include "commandStatus.h"
-#include "fileTransfer.h"
-#include "packet.h"
-#include "serverFileManager.h"
-#include <mutex>
-#include <sys/stat.h>
-#include <sys/types.h>
-
-
 
 
 #define PORT 4000
@@ -27,31 +7,52 @@ std::mutex dell_user;
 serverComManager::serverComManager(ClientList* client_list){ this->client_list = client_list;};
 
 // PRIVATE METHODS
-void serverComManager::get_sync_dir()
+void serverComManager::upload(Packet command_packet)
 {
-	cout << "received get sync dir command from user: " + this->username <<std::endl;
-	
-	std::vector<std::string> paths = serverFileManager::get_sync_dir_paths(this->username);
-	int total_paths = paths.size();
-	if(total_paths == 0){
-		// If user sync dir is empty, warns client to not wait for file reception
-		Packet dont_receive_files(Packet::ERR, 1, 1, "", 0);
-		dont_receive_files.send_packet(this->client_cmd_socket);
-		return;
-	}
-	
-	for(size_t i = 0; i < total_paths; ++i){
-		// Packet payload -> file path, total files being transfered, index of current file being transfered
-		std::string payload = paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i);
+	// construct file path for client sync dir from packet payload and username
+	string file_path = strtok(command_packet.get_payload(), "\n");
+	size_t last_slash = file_path.find_last_of("/\\");
+    string file_name = (last_slash != std::string::npos) ? file_path.substr(last_slash) : file_path;
+	string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
+	string local_file_path = sync_dir_path + "/" + file_name;
 
-		// Create and send packet with file infos
-		Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
-		get_sync_command.send_packet(this->client_cmd_socket);
-		std::cout << "Sent path: " << paths[i] << std::endl;
+	// receive file from client upload socket
+	FileTransfer::receive_file(local_file_path, this->client_upload_socket);
 
-		// Send file
-		FileTransfer::send_file(paths[i], this->client_cmd_socket);
-	}
+	// propagate file to both client devices (sync)
+	ClientNode* client_devices = client_list->get_client(this->username);
+	int device1_socket = client_devices->get_device1_download_socket();
+	int device2_socket = client_devices->get_device2_download_socket();
+	
+	Packet file_name_packet(Packet::DATA_PACKET, 1, 1, file_name.c_str(), file_name.size());
+	file_name_packet.send_packet(device1_socket);
+	FileTransfer::send_file(local_file_path, device1_socket);
+	file_name_packet.send_packet(device2_socket);
+	FileTransfer::send_file(local_file_path, device2_socket);
+}
+
+
+void serverComManager::download(Packet command_packet)
+{
+	// construct file path from packet payload and username
+	string file_name = strtok(command_packet.get_payload(), "\n");
+	string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
+	string file_path = sync_dir_path + "/" + file_name;
+
+	// send file to client for downloading
+	FileTransfer::send_file(file_path, this->client_cmd_socket);
+	return;
+}
+
+void serverComManager::delete_server_file(Packet command_packet)
+{
+	// construct file path from packet payload and username
+	string file_name = strtok(command_packet.get_payload(), "\n");
+	string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
+	string file_path = sync_dir_path + "/" + file_name;
+
+	// delete the file in file_path path.
+	cout << serverFileManager::delete_file(file_path) << endl;
 }
 
 void serverComManager::list_server() 
@@ -106,17 +107,54 @@ void serverComManager::list_server()
     }
 }
 
-void serverComManager::end_communications()
+void serverComManager::end_communications(bool *exit)
 {
+	// Remove client device from server device list
+	dell_user.lock();
+    this->client_list->remove_device(
+        this->username, 
+        tuple<int,int,int>{this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket}
+    );
+	dell_user.unlock();
+
+	// close sockets
 	close(this->client_cmd_socket);
 	close(this->client_fetch_socket);
 	close(this->client_upload_socket);
 	cout << "All sockets closed for user:" + this->username <<std::endl;
+
+	(*exit) = true;
+}
+
+void serverComManager::get_sync_dir()
+{
+	cout << "received get sync dir command from user: " + this->username <<std::endl;
+	
+	std::vector<std::string> paths = serverFileManager::get_sync_dir_paths(this->username);
+	int total_paths = paths.size();
+	if(total_paths == 0){
+		// If user sync dir is empty, warns client to not wait for file reception
+		Packet dont_receive_files(Packet::ERR, 1, 1, "", 0);
+		dont_receive_files.send_packet(this->client_cmd_socket);
+		return;
+	}
+	
+	for(size_t i = 0; i < total_paths; ++i){
+		// Packet payload -> file path, total files being transfered, index of current file being transfered
+		std::string payload = paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i);
+
+		// Create and send packet with file infos
+		Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
+		get_sync_command.send_packet(this->client_cmd_socket);
+		std::cout << "Sent path: " << paths[i] << std::endl;
+
+		// Send file
+		FileTransfer::send_file(paths[i], this->client_cmd_socket);
+	}
 }
 
 void serverComManager::start_communications()
-{
-	
+{	
 	Packet starter_packet = Packet::receive_packet(this->client_cmd_socket);
 	char* payload = starter_packet.get_payload();
 	std::string file_path;
@@ -127,7 +165,10 @@ void serverComManager::start_communications()
 		this->username = username;
 
 		//try to add client to device list
-		this->client_list->add_device(username,this->client_cmd_socket);
+		this->client_list->add_device(
+			this->username, 
+			tuple<int,int,int>{this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket}
+		);
 		this->file_manager.create_server_sync_dir(username);
 		this->client_list->display_clients();
 		get_sync_dir();
@@ -145,50 +186,45 @@ void serverComManager::await_command_packet()
 	while(!exit) {
 		// Wait to receive a command packet from client
 		Packet command_packet = Packet::receive_packet(this->client_cmd_socket);
+
 		// Determine what to do based on the command packet received
 		switch(command_packet.get_seqn()){
 
+			case Command::UPLOAD: {
+				cout << "received upload command from user: " + this->username << std::endl;
+				upload(command_packet);
+				break;
+			}
+
 			case Command::DOWNLOAD: {
 				cout << "received download command from user: " + this->username << std::endl;
-				string file_name = strtok(command_packet.get_payload(), "\n");
-				string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
-				string file_path = sync_dir_path + "/" + file_name;
-				FileTransfer::send_file(file_path, this->client_cmd_socket);
+				download(command_packet);
 				break;
-			  }
+			}
+
+			case Command::DELETE:{
+				cout << "received delete command from user: " + this->username << std::endl;
+				delete_server_file(command_packet);
+				break;
+			}
+
+			case Command::LIST_SERVER: {
+				std::cout << "received list_server command from user: " + this->username << std::endl;
+				list_server();
+                break;
+			}
+
+			case Command::EXIT:{
+				cout << "received exit command from user: " + this->username <<std::endl;
+				end_communications(&exit);
+				break;
+			}
 
 			case Command::GET_SYNC_DIR:{
+				cout << "received get_sync_dir command from user: " + this->username << std::endl;
 				get_sync_dir();
 				break;
         	}
-			case Command::DELETE:{
-				cout << "received delete command from user: " + this->username << std::endl;
-				string file_name = strtok(command_packet.get_payload(), "\n");
-				string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
-				string file_path = sync_dir_path + "/" + file_name;
-				// delete the file in file_path path.
-				cout << serverFileManager::delete_file(file_path) << endl;
-				break;
-			}
-			case Command::EXIT:{
-				cout << "recieve exit command from user: " + this->username <<std::endl;
-
-				//remove from server list this clients' connection
-				dell_user.lock();
-				this->client_list->remove_device(this->username,this->client_cmd_socket);
-				dell_user.unlock();
-
-				end_communications();
-				exit = true;
-				break;
-			}
-			// Comando para listar arquivos no servidor
-            case Command::LIST_SERVER: {
-				list_server();
-                std::cout << "received list_server command from user: " + this->username << std::endl;
-                
-                break;
-			}
 		}
 	}
 }

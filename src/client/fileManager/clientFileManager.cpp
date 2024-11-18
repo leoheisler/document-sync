@@ -5,6 +5,19 @@ using namespace std;
 
 //CONSTRUCTOR
 clientFileManager::clientFileManager(){};
+//PRIVATE
+
+ void clientFileManager::print_paths(){
+    if (this->paths.empty()) {
+        std::cout << "Nenhum caminho disponível." << std::endl;
+        return;
+    }
+
+    std::cout << "Lista de caminhos:" << std::endl;
+    for (const auto& path : paths) {
+        std::cout << "- " << path << std::endl;
+    }
+}
 
 //PUBLIC
 void clientFileManager::check_dir_updates(){
@@ -17,7 +30,7 @@ void clientFileManager::check_dir_updates(){
         num_read = read(this->inotifyFd, buf, sizeof(buf));
 
         if (num_read <= 0) {
-            std::cout << "incorrect read inotify!" <<endl;
+            //std::cout << "incorrect read inotify!" <<endl;
             break;
         }
 
@@ -29,11 +42,20 @@ void clientFileManager::check_dir_updates(){
             {
                 // created/changed files event
                 case IN_CLOSE_WRITE: {
+                    string path = event->name;
+                    path = "/" + path;
+
+                    if(contains_path(path)){
+                        cout << "caminho na lista:" + path << endl;
+                    }
                     break;
                 }
                 
                 // deleted files event
                 case IN_DELETE: {
+                    string path = event->name;
+                    path = "/" + path;
+                    cout << "deleted file: " + path;
                     break;
                 }
             }
@@ -42,7 +64,6 @@ void clientFileManager::check_dir_updates(){
             ptr += sizeof(struct inotify_event) + event->len;
         }
     }
-
 }
 
 void clientFileManager::create_client_sync_dir(){
@@ -76,7 +97,32 @@ std::string clientFileManager::erase_dir(std::string path){
     }
 }
 
+std::string clientFileManager::delete_file(std::string file_path) {
+    cout << "CHEGUEI AQUI NO DELETE FILE, com o file:" + file_path <<endl;
+    try {
+        if (fs::remove(file_path)) {
+            return "File deleted successfully.\n";
+        } else {
+            return "File not found or unable to delete.\n";
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << "Error: " << e.what() << '\n';
+        return "Something went wrong";
+    }
+}
 
+void clientFileManager::add_path(string path){
+    this->paths.push_back(path);
+}
+
+void clientFileManager::remove_path(string path){
+    this->paths.erase(std::remove(this->paths.begin(), this->paths.end(), path), this->paths.end());
+}
+
+bool clientFileManager::contains_path(const std::string path){
+    // Usa std::find para verificar se o caminho está na lista
+    return std::find(this->paths.begin(),this-> paths.end(), path) != this->paths.end();
+}
 // Function: list_files
 // Purpose: This function retrieves a list of file names from the "sync_dir" directory
 //          and prints their modification, access, and change times (MAC times) where available.
