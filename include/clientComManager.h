@@ -5,7 +5,21 @@
 #include <sstream>
 #include <netdb.h>
 #include <clientFileManager.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <iostream>
+
+
+
 #include "commandStatus.h"
+#include "fileTransfer.h"
+#include "packet.h"
 
 class clientComManager
 {
@@ -15,23 +29,35 @@ class clientComManager
         int sock_upload = -1;
         int sock_fetch = -1;
 
-        // Ponteiro para file_manager, inicialmente nulo
+        // filemanager reference
         clientFileManager* file_manager = nullptr;
 
-        void get_sync_dir();
-        void receive_sync_dir_files();
-        void list_server();
-        void receive_list_server_times();
-        void download(std::string file_name);
+        //Sockets
         void start_sockets();
         void connect_sockets(int port, hostent* server);
         void close_sockets();
+
+        //sync_dir funcs
+        void get_sync_dir();
+        void receive_sync_dir_files();
+
+        //list_server
+        void list_server();
+        void receive_list_server_times();
+
+        // other commands
+        void upload();
+        void download();
+        void delete_file();
+        void list_client();
+        void exit_client();
+    
     public:
         // Constructor Method
-        clientComManager(/* args */);
+        clientComManager();
 
-        // Send packet based on user request
-        std::string execute_command(Command command);
+        // Delegate method based on command requested by user
+        void execute_command(Command command);
 
         // Communication Methods
         int connect_client_to_server(int argc, char* argv[]);
@@ -40,10 +66,9 @@ class clientComManager
         // Getters & Setters
         std::string get_username();
         void set_username(std::string username);
-        void receive_sync_dir_files();
         void send_delete_request(std::string file_name);
 
-        // Setter, para poder chamar o list_files dentro do ComManager
+        // Sett client file handler
         void set_file_manager(clientFileManager* fm); 
 
 };

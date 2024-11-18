@@ -38,7 +38,7 @@ class FileTransfer {
             }
 
             file.close();
-            cout << "File sent successfully!" << std::endl;
+            //cout << "File sent successfully!" << std::endl;
         }
 
         static void receive_file(const std::string& output_path, int socket) {
@@ -71,13 +71,13 @@ class FileTransfer {
                 seq_num++;
                 // Check for end-of-transmission signal 
                 if (seq_num == total_packets) {
-                    cout << "Received end of transmission packet from client" << std::endl;
+                    //cout << "Received end of transmission packet from client" << std::endl;
                     break; 
                 }
             }
 
             file.close();
-            cout << "File received successfully!" << std::endl;
+            //cout << "File received successfully!" << std::endl;
         }
 };
 

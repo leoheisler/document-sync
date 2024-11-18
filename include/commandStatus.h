@@ -3,12 +3,6 @@
 #ifndef COMMAND_STATUS_H
 #define COMMAND_STATUS_H
 
-enum class CommandStatus {
-    VALID,
-    TOO_MANY_ARGS,
-    TOO_FEW_ARGS,
-};
-
 enum Command {
     UPLOAD = 0x0001,
     DOWNLOAD = 0x0002,

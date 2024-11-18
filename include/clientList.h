@@ -1,38 +1,66 @@
 #ifndef CLIENTLIST_H
 #define CLIENTLIST_H
 
-#include <string>
 #include <iostream>
+#include <string>
 #include <tuple>
+
 using namespace std;
 
 class ClientNode {
     private:
-        std::string username;  // Username of client user
-        int socket_device1;    // Socket for device 1
-        int socket_device2;    // Socket for device 2
-        ClientNode* next;      // Pointer to the next node
+        string username;                        // Username of client user
+        tuple<int, int, int> device1_sockets;   // Sockets for device 1 (cmd, upload, download)
+        tuple<int, int, int> device2_sockets;   // Sockets for device 2 (cmd, upload, download)
+        ClientNode* next;                       // Pointer to the next node
 
     public:
         // Constructor with default values for sockets
-        ClientNode(const string& uname, int sock1 = 0, int sock2 = 0)
-            : username(uname), socket_device1(sock1), socket_device2(sock2), next(nullptr) {}
+        ClientNode(const std::string& uname, 
+                   std::tuple<int, int, int> dev1_sockets = {0, 0, 0},
+                   std::tuple<int, int, int> dev2_sockets = {0, 0, 0})
+            : username(uname), device1_sockets(dev1_sockets), device2_sockets(dev2_sockets), next(nullptr) {}
 
         // Getters for username and socket information
         const string& get_username() const { return username; }
-        int get_socket_device1() const { return socket_device1; }
-        int get_socket_device2() const { return socket_device2; }
 
-        void set_socket_device1(int socket) { socket_device1 = socket; }
-        void set_socket_device2(int socket) { socket_device2 = socket; }
+        // Getters and Setters for device 1 sockets
+        std::tuple<int, int, int> get_device1_sockets() const { return device1_sockets; }
+        void set_device1_sockets(int cmd, int upload, int download) { 
+            device1_sockets = std::make_tuple(cmd, upload, download); 
+        }
+        int get_device1_cmd_socket() const { return std::get<0>(device1_sockets); }
+        int get_device1_upload_socket() const { return std::get<1>(device1_sockets); }
+        int get_device1_download_socket() const { return std::get<2>(device1_sockets); }
+        void set_device1_cmd_socket(int socket) { std::get<0>(device1_sockets) = socket; }
+        void set_device1_upload_socket(int socket) { std::get<1>(device1_sockets) = socket; }
+        void set_device1_download_socket(int socket) { std::get<2>(device1_sockets) = socket; }
+
+        // Getters and Setters for device 2 sockets
+        std::tuple<int, int, int> get_device2_sockets() const { return device2_sockets; }
+        void set_device2_sockets(int cmd, int upload, int download) { 
+            device2_sockets = std::make_tuple(cmd, upload, download); 
+        }
+        int get_device2_cmd_socket() const { return std::get<0>(device2_sockets); }
+        int get_device2_upload_socket() const { return std::get<1>(device2_sockets); }
+        int get_device2_download_socket() const { return std::get<2>(device2_sockets); }
+        void set_device2_cmd_socket(int socket) { std::get<0>(device2_sockets) = socket; }
+        void set_device2_upload_socket(int socket) { std::get<1>(device2_sockets) = socket; }
+        void set_device2_download_socket(int socket) { std::get<2>(device2_sockets) = socket; }
+
+        // Getters and Setters for next pointer
         ClientNode* get_next() const { return next; }
         void set_next(ClientNode* next_node) { next = next_node; }
 
         // Display client info (for debugging)
-        void display() {
-            std::cout << "Client: " << username << endl
-                    << " Device 1 Socket: " << socket_device1 << endl
-                    << " Device 2 Socket: " << socket_device2 << endl;
+        void display() const {
+            std::cout << "Client: " << username << std::endl
+                      << " Device 1 Sockets: CMD=" << std::get<0>(device1_sockets)
+                      << ", UPLOAD=" << std::get<1>(device1_sockets)
+                      << ", DOWNLOAD=" << std::get<2>(device1_sockets) << std::endl
+                      << " Device 2 Sockets: CMD=" << std::get<0>(device2_sockets)
+                      << ", UPLOAD=" << std::get<1>(device2_sockets)
+                      << ", DOWNLOAD=" << std::get<2>(device2_sockets) << std::endl;
         }
 };
 
@@ -44,31 +72,39 @@ class ClientList {
         ClientList() : head(nullptr) {}
 
         // Method to add a new device to the list
-        void add_device(const string& uname, int device_sock) {
+        void add_device(const std::string& uname, const std::tuple<int, int, int>& device_sockets) {
             ClientNode* current = head;
-            bool isConnected = true;
+
             // Search for the client node by username
             while (current != nullptr) {
                 if (current->get_username() == uname) {
-                    // Check if there is a free socket for the new device
-                    if (current->get_socket_device1() == 0) {
-                        current->set_socket_device1(device_sock);                      
-                    } else if (current->get_socket_device2() == 0) {
-                        current->set_socket_device2(device_sock);  
+                    // Check if there is a free slot for the new device
+                    if (std::get<0>(current->get_device1_sockets()) == 0 &&
+                        std::get<1>(current->get_device1_sockets()) == 0 &&
+                        std::get<2>(current->get_device1_sockets()) == 0) {
+                        current->set_device1_sockets(std::get<0>(device_sockets), 
+                                                     std::get<1>(device_sockets), 
+                                                     std::get<2>(device_sockets));
+                    } else if (std::get<0>(current->get_device2_sockets()) == 0 &&
+                               std::get<1>(current->get_device2_sockets()) == 0 &&
+                               std::get<2>(current->get_device2_sockets()) == 0) {
+                        current->set_device2_sockets(std::get<0>(device_sockets), 
+                                                     std::get<1>(device_sockets), 
+                                                     std::get<2>(device_sockets));
                     } else {
                         throw std::string("CLIENT FULL");
                     }
                     return;
                 }
-                current = current->get_next();  // Move to the next node
+                current = current->get_next();
             }
 
             // If we reach here, the client was not found, so add a new client
-            ClientNode* new_client = new ClientNode(uname, device_sock);
+            ClientNode* new_client = new ClientNode(uname, device_sockets);
 
             // Insert the new client node at the end of the list
             if (head == nullptr) {
-                head = new_client;  
+                head = new_client;
             } else {
                 ClientNode* temp = head;
                 while (temp->get_next() != nullptr) {
@@ -78,6 +114,60 @@ class ClientList {
             }
         }
 
+        // Method to remove a device by username and socket triple
+        void remove_device(const std::string& uname, const std::tuple<int, int, int>& device_sockets) {
+            ClientNode* current = head;
+            ClientNode* prev = nullptr;
+
+            while (current != nullptr) {
+                if (current->get_username() == uname) {
+                    // Check and remove the corresponding device sockets
+                    if (current->get_device1_sockets() == device_sockets) {
+                        current->set_device1_sockets(0, 0, 0);
+                    } else if (current->get_device2_sockets() == device_sockets) {
+                        current->set_device2_sockets(0, 0, 0);
+                    } else {
+                        throw std::string("DEVICE NOT FOUND FOR USER");
+                    }
+
+                    // Remove the client if both devices are disconnected
+                    if (std::get<0>(current->get_device1_sockets()) == 0 &&
+                        std::get<1>(current->get_device1_sockets()) == 0 &&
+                        std::get<2>(current->get_device1_sockets()) == 0 &&
+                        std::get<0>(current->get_device2_sockets()) == 0 &&
+                        std::get<1>(current->get_device2_sockets()) == 0 &&
+                        std::get<2>(current->get_device2_sockets()) == 0) {
+                        if (prev == nullptr) {  // Removing the first node
+                            head = current->get_next();
+                        } else {  // Removing an intermediate or last node
+                            prev->set_next(current->get_next());
+                        }
+                        delete current;  // Free the memory
+                    }
+                    return;
+                }
+                prev = current;
+                current = current->get_next();
+            }
+
+            throw std::string("CLIENT NOT FOUND");
+        }
+
+        // Method to retrieve a client node by username
+        ClientNode* get_client(const std::string& uname) const {
+            ClientNode* current = head;
+            
+            while (current != nullptr) {
+                if (current->get_username() == uname) {
+                    return current;  // Return the pointer to the matching client node
+                }
+                current = current->get_next();  // Move to the next node
+            }
+            
+            // If the username is not found
+            throw std::string("CLIENT NOT FOUND");
+        }
+
         // Display all clients in the list (for debugging)
         void display_clients() const {
             ClientNode* current = head;
@@ -85,41 +175,6 @@ class ClientList {
                 current->display();
                 current = current->get_next();
             }
-        }
-
-        void remove_device(const string& uname, int device_sock) {
-            ClientNode* current = head;
-            ClientNode* prev = nullptr;
-
-            while (current != nullptr) {
-                if (current->get_username() == uname) {
-                    // Verifica e remove o socket correspondente
-                    if (current->get_socket_device1() == device_sock) {
-                        current->set_socket_device1(0);
-                    } else if (current->get_socket_device2() == device_sock) {
-                        current->set_socket_device2(0);
-                    } else {
-                        throw std::string("DEVICE NOT FOUND FOR USER");
-                    }
-
-                    // Remove o cliente se ambos os dispositivos estiverem desconectados
-                    if (current->get_socket_device1() == 0 && current->get_socket_device2() == 0) {
-                        if (prev == nullptr) {  // Removendo o primeiro nó
-                            head = current->get_next();
-                        } else {  // Removendo um nó intermediário ou final
-                            prev->set_next(current->get_next());
-                        }
-                        delete current;  // Libera a memória
-                    }
-
-                    return;  // Finaliza após encontrar e tratar o cliente
-                }
-
-                prev = current;
-                current = current->get_next();  // Avança para o próximo cliente
-            }
-
-            throw std::string("CLIENT NOT FOUND");
         }
 };
 
