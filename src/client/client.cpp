@@ -2,10 +2,10 @@
 #include <stdlib.h>
 #include <iostream>
 #include <thread>
-#include "clientComManager.h"
-#include "clientParser.h" 
-#include "commandStatus.h"
+
 #include "clientFileManager.h"
+#include "clientComManager.h"
+#include "commandStatus.h"
 #include "packet.h"
 
 using namespace std;
@@ -14,27 +14,10 @@ class client
 {
     private:
         clientFileManager file_manager;
-        clientParser parser;
         clientComManager communication_manager;
-        bool exit = false;
-        
-        bool valid_command_status(CommandStatus status){
-            switch (status) {
-                case CommandStatus::VALID:
-                    return true;
-                case CommandStatus::TOO_MANY_ARGS:
-                    cout << "Too many arguments.\n";
-                    return false;
-                case CommandStatus::TOO_FEW_ARGS:
-                    cout << "Too few arguments.\n";
-                    return false;
-                default:
-                    return false;
-            }
-        }
 
         void command_input_interface(){
-            while(!exit){
+            while(true){
                 cout << "\n\nEscolha uma das opções abaixo:\n";
                 cout << "1. upload <path/filename.ext> - Envia o arquivo para o servidor e sincroniza com os dispositivos.\n";
                 cout << "2. download <filename.ext> - Baixa uma cópia não sincronizada do arquivo do servidor.\n";
@@ -53,7 +36,7 @@ class client
                     case 3: command = Command::DELETE; break;
                     case 4: command = Command::LIST_SERVER; break;
                     case 5: command = Command::LIST_CLIENT; break;
-                    case 6: command = Command::EXIT; exit = true; break;
+                    case 6: command = Command::EXIT; exit(EXIT_FAILURE); break;
                     case 7: command = Command::GET_SYNC_DIR; break;
                     default: command = Command::NO_COMMAND; break;
                 }
@@ -64,14 +47,15 @@ class client
         void upload_to_server()
         {
             // inotify for sync
-            while(!exit){
-
+            while(true){
+                file_manager.check_dir_updates();
             }
         }
 
         void download_from_server()
         {
-            while(!exit){
+        
+            while(true){
                 communication_manager.await_sync();
             }
         }
@@ -80,6 +64,7 @@ class client
         client(){
             // Configurando o file_manager no communication_manager
             communication_manager.set_file_manager(&file_manager);
+            
         };
         void start(int argc, char* argv[]){
             //create sync_dir and connect sockets
@@ -88,9 +73,9 @@ class client
             cout << flush;
 
             // create threads
-            thread command_thread(&client::command_input_interface, this);
-            thread upload_thread(&client::upload_to_server, this);
-            thread download_thread(&client::download_from_server, this);
+            thread command_thread(&client::command_input_interface,this);
+            thread upload_thread(&client::upload_to_server,this);
+            thread download_thread(&client::download_from_server,this);
 
             // wait for all threads to finish so main can finish
             command_thread.join();
@@ -100,6 +85,7 @@ class client
 };
 
 int main(int argc, char* argv[]){
+    
     client client;
     client.start(argc,argv);   
 }

@@ -10,9 +10,8 @@
 
 #include "clientComManager.h" 
 #include "commandStatus.h"
-#include "packet.h"
 #include "fileTransfer.h"
-#include "clientParser.h" 
+#include "packet.h"
 
 using namespace std;
 
@@ -247,12 +246,12 @@ std::string clientComManager::execute_command(Command command) {
             return "NOT IMPLEMENTED YET";
         case Command::DOWNLOAD:
             try {           
-                // Recebe nome do arquivo a ser baixado na linha de comando 
+                // receives in the command prompt the name of the archive
                 string file_name;
                 cout << "\nInsira o nome do arquivo desejado: ";
                 cin >> file_name;
 
-                // Executa o comando/método de download
+                // Executes download method
                 download(file_name);
                 return "Everything ok.";
             } catch (const std::exception& e) {

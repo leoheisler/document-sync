@@ -41,75 +41,73 @@ void serverComManager::get_sync_dir()
 	}
 	
 	for(size_t i = 0; i < total_paths; ++i){
-		// Construct the packet payload string
+		// Packet payload -> file path, total files being transfered, index of current file being transfered
 		std::string payload = paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i);
 
-		// Create a packet for sending
+		// Create and send packet with file infos
 		Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
-
-		// Send the packet
 		get_sync_command.send_packet(this->client_cmd_socket);
-
-		// Optional logging
 		std::cout << "Sent path: " << paths[i] << std::endl;
 
-		// Send the file using sender_reciever
+		// Send file
 		FileTransfer::send_file(paths[i], this->client_cmd_socket);
 	}
 }
 
-void serverComManager::list_server() {
+void serverComManager::list_server() 
+{
     cout << "received list server command from user: " + this->username << std::endl;
     
-    // Obtém os caminhos dos arquivos no diretório de sincronização do usuário
+    // Gets the file paths in the user's sync directory
     std::vector<std::string> paths = serverFileManager::get_sync_dir_paths(this->username);
     int total_paths = paths.size();
     
-    // Se não houver arquivos no diretório de sincronização
+    // If there are no files in the sync directory
     if (total_paths == 0) {
-        // Informa ao cliente que não há arquivos para listar
+        // Inform the client that there are no files to list
         Packet no_files(Packet::ERR, 1, 1, "No files to list", 0);
         no_files.send_packet(this->client_cmd_socket);
         return;
     }
 
-    // Para cada arquivo, calcula os tempos e envia para o cliente
+    // For each file, calculate the times and send them to the client
     for (size_t i = 0; i < total_paths; ++i) {
-        // Obtém os tempos MAC (modification time, access time, change/creation time)
+        // Get MAC times (modification time, access time, change/creation time)
         struct stat file_stat;
         if (stat(paths[i].c_str(), &file_stat) == -1) {
-            // Se falhar ao obter os tempos do arquivo, envia uma mensagem de erro
+            // If unable to retrieve the file's times, send an error message
             std::string error_msg = "Error retrieving times for file: " + paths[i];
             Packet error_packet(Packet::ERR, 1, 1, error_msg.c_str(), error_msg.size());
             error_packet.send_packet(this->client_cmd_socket);
             continue;
         }
 
-        // Formatação dos tempos como strings
+        // Format the times as strings
         std::ostringstream mtime_stream, atime_stream, ctime_stream;
         mtime_stream << std::put_time(std::localtime(&file_stat.st_mtime), "%Y-%m-%d %H:%M:%S");
         atime_stream << std::put_time(std::localtime(&file_stat.st_atime), "%Y-%m-%d %H:%M:%S");
         ctime_stream << std::put_time(std::localtime(&file_stat.st_ctime), "%Y-%m-%d %H:%M:%S");
 
-        // Formata a mensagem para enviar
+        // Format the message to send
         std::string file_info = paths[i] + "\n" +
                                 mtime_stream.str() + "\n" +
                                 atime_stream.str() + "\n" +
                                 ctime_stream.str() + "\n" +
 								std::to_string(total_paths) + "\n" + std::to_string(i);
 
-        // Cria um pacote com a informação do arquivo
+        // Create a packet with the file information
         Packet file_info_packet(Packet::DATA_PACKET, 1, 1, file_info.c_str(), file_info.size());
 
-        // Envia o pacote para o cliente
+        // Send the packet to the client
         file_info_packet.send_packet(this->client_cmd_socket);
 
-        // Log opcional para monitoramento
-        std::cout << "Sent file info: " << file_info << std::endl;
+        // Optional log for monitoring
+        //std::cout << "Sent file info: " << file_info << std::endl;
     }
 }
 
-void serverComManager::end_communications(){
+void serverComManager::end_communications()
+{
 	close(this->client_cmd_socket);
 	close(this->client_fetch_socket);
 	close(this->client_upload_socket);
