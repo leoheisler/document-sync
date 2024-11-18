@@ -1,6 +1,7 @@
 #include "clientComManager.h" 
 
 using namespace std;
+namespace fs = std::filesystem;
 
 // CONSTRUCTOR
 clientComManager::clientComManager(){
@@ -85,9 +86,10 @@ void clientComManager::download()
     string file_name;
     cout << "\nInsira o nome do arquivo desejado: ";
     cin >> file_name;
+    file_name = "/" + file_name + "\n";
 
     // Send packet signaling to server what file it wants to download
-    Packet download_command = Packet(Packet::CMD_PACKET, Command::DOWNLOAD, 1, (file_name + "\n").c_str(), file_name.length());
+    Packet download_command = Packet(Packet::CMD_PACKET, Command::DOWNLOAD, 1, file_name.c_str(), file_name.length());
     download_command.send_packet(this->sock_cmd);
     FileTransfer::receive_file("../" + file_name, this->sock_cmd);
 }
@@ -195,7 +197,7 @@ void clientComManager::exit_client()
 void clientComManager::get_sync_dir()
 {
     //first erase everything that was in clint sync_dir, we dont want other clients files in new clients directory
-    cout << clientFileManager::erase_dir("../src/client/sync_dir") << endl;
+    cout << this->file_manager->erase_dir("../src/client/sync_dir") << endl;
     // Send packet signaling server to execute get_sync_dir with client info (username and socket)
     string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
     Packet get_sync_command = Packet(Packet::CMD_PACKET, Command::GET_SYNC_DIR, 1, client_info.c_str(), client_info.length());
@@ -205,7 +207,7 @@ void clientComManager::get_sync_dir()
 void clientComManager::receive_sync_dir_files()
 {
     int client_socket = this->sock_cmd;
-    FileTransfer receiver;
+
     while (true) {
         // Receive a packet
         Packet received_packet = Packet::receive_packet(client_socket);
@@ -230,12 +232,13 @@ void clientComManager::receive_sync_dir_files()
 
             size_t last_slash = path.find_last_of("/\\");
             std::string filename = (last_slash != std::string::npos) ? path.substr(last_slash) : path;
+            
             //put the file in the queue
-            //this->file_manager->add_path(path);
+            this->file_manager->add_path(filename);
 
             // Receive the file using the extracted path
             cout << "will store at: ../src/client/sync_dir" + filename << endl;
-            receiver.receive_file("../src/client/sync_dir" + filename, client_socket);
+            FileTransfer::receive_file("../src/client/sync_dir" + filename, client_socket);
 
             // Check if all paths are received
             if (index + 1 == total_paths) {
@@ -317,22 +320,31 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
 
     // CONNECT
 	connect_sockets(port,server);
-    execute_command(Command::GET_SYNC_DIR);
+    execute_command(Command::GET_SYNC_DIR); 
+    this->file_manager->set_sockets(this->sock_cmd, this->sock_upload, this->sock_fetch);
 
     return 0;
 }
 
 void clientComManager::await_sync()
 {
-    // Receive a packet containing the name of the file to be inserted in sync dir
     Packet received_packet = Packet::receive_packet(this->sock_fetch);
-    if (received_packet.get_type() != Packet::DATA_PACKET) {
-        return;
-    }else{
-        // Construct file_path from file_name and wait to receive the file from server
+
+    // CMD_PACKET == DELETE SYNC
+    if (received_packet.get_type() == Packet::CMD_PACKET) {
         string file_name = strtok(received_packet.get_payload(), "\n");
         string sync_dir_path = "../src/client/sync_dir";
-        string file_path = sync_dir_path + "/" + file_name;
+        string file_path = sync_dir_path + file_name;
+        this->file_manager->add_path(file_name);
+        
+        this->file_manager->delete_file(file_path);
+
+    // DATA_PACKET == DOWNLOAD SYNC
+    }else if(received_packet.get_type() == Packet::DATA_PACKET){
+        string file_name = strtok(received_packet.get_payload(), "\n");
+        string sync_dir_path = "../src/client/sync_dir";
+        string file_path = sync_dir_path + file_name;
+        this->file_manager->add_path(file_name);
 
         FileTransfer::receive_file(file_path, this->sock_fetch);
         return;

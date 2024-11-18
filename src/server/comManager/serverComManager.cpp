@@ -1,5 +1,7 @@
 #include "serverComManager.h" 
 
+using namespace std;
+namespace fs = std::filesystem;
 
 #define PORT 4000
 std::mutex dell_user;
@@ -11,10 +13,10 @@ void serverComManager::upload(Packet command_packet)
 {
 	// construct file path for client sync dir from packet payload and username
 	string file_path = strtok(command_packet.get_payload(), "\n");
-	size_t last_slash = file_path.find_last_of("/\\");
-    string file_name = (last_slash != std::string::npos) ? file_path.substr(last_slash) : file_path;
+	fs::path path(file_path);
+	string file_name = "/" + path.filename().string(); // Extracts only the file name
 	string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
-	string local_file_path = sync_dir_path + "/" + file_name;
+	string local_file_path = sync_dir_path + file_name;
 
 	// receive file from client upload socket
 	FileTransfer::receive_file(local_file_path, this->client_upload_socket);
@@ -23,15 +25,16 @@ void serverComManager::upload(Packet command_packet)
 	ClientNode* client_devices = client_list->get_client(this->username);
 	int device1_socket = client_devices->get_device1_download_socket();
 	int device2_socket = client_devices->get_device2_download_socket();
-
+	
+	file_name = file_name + "\n";
 	Packet file_name_packet(Packet::DATA_PACKET, 1, 1, file_name.c_str(), file_name.size());
 	if(device1_socket != 0){
 		file_name_packet.send_packet(device1_socket);
-		FileTransfer::send_file(local_file_path, device1_socket);	
+		FileTransfer::send_file(local_file_path, device1_socket);
 	}
 	if(device2_socket != 0){
 		file_name_packet.send_packet(device2_socket);
-		FileTransfer::send_file(local_file_path, device2_socket);	
+		FileTransfer::send_file(local_file_path, device2_socket);
 	}
 }
 
@@ -41,7 +44,7 @@ void serverComManager::download(Packet command_packet)
 	// construct file path from packet payload and username
 	string file_name = strtok(command_packet.get_payload(), "\n");
 	string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
-	string file_path = sync_dir_path + "/" + file_name;
+	string file_path = sync_dir_path + file_name;
 
 	// send file to client for downloading
 	FileTransfer::send_file(file_path, this->client_cmd_socket);
@@ -53,10 +56,30 @@ void serverComManager::delete_server_file(Packet command_packet)
 	// construct file path from packet payload and username
 	string file_name = strtok(command_packet.get_payload(), "\n");
 	string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
-	string file_path = sync_dir_path + "/" + file_name;
-
+	string file_path = sync_dir_path + file_name;
+	
 	// delete the file in file_path path.
-	cout << serverFileManager::delete_file(file_path) << endl;
+	string found_file = serverFileManager::delete_file(file_path);
+
+	// dont propagate if file has already been deleted from server
+	if(found_file == "File not found or unable to delete.\n"){
+		return;
+	}
+
+	// Propagate delete to both clients	
+	ClientNode* client_devices = client_list->get_client(this->username);
+	int device1_socket = client_devices->get_device1_download_socket();
+	int device2_socket = client_devices->get_device2_download_socket();
+	
+	Packet file_name_packet(Packet::CMD_PACKET, Command::DELETE, 1, file_name.c_str(), file_name.size());
+	if(device1_socket != 0){
+		file_name_packet.send_packet(device1_socket);
+	}
+	if(device2_socket != 0){
+		file_name_packet.send_packet(device2_socket);
+	}
+
+
 }
 
 void serverComManager::list_server() 

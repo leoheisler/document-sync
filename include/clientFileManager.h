@@ -16,6 +16,7 @@
 #include <algorithm> 
 #include "packet.h"
 #include "commandStatus.h"
+#include "fileTransfer.h"
 
 class clientFileManager
 {
@@ -30,7 +31,7 @@ class clientFileManager
         clientFileManager();
         void create_client_sync_dir();
         std::vector<std::string> list_files();
-        static std::string erase_dir(std::string path);
+        std::string erase_dir(std::string path);
         std::string delete_file(std::string file_path);
         void check_dir_updates();
         void add_path(std::string path);

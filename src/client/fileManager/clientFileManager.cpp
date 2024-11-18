@@ -29,11 +29,6 @@ void clientFileManager::check_dir_updates(){
         // reading inotify buffer for events
         num_read = read(this->inotifyFd, buf, sizeof(buf));
 
-        if (num_read <= 0) {
-            //cout << "incorrect read inotify!" <<endl;
-            break;
-        }
-
         // event handling
         for (char *ptr = buf; ptr < buf + num_read; ) {
             event = (const struct inotify_event *) ptr;
@@ -42,20 +37,31 @@ void clientFileManager::check_dir_updates(){
             {
                 // created/changed files event
                 case IN_CLOSE_WRITE: {
-                    string path = event->name;
-                    path = "/" + path;
-
-                    if(contains_path(path)){
-                        cout << "caminho na lista:" + path << endl;
+                    string file_name = event->name;
+                    file_name = "/" + file_name;
+                    if(contains_path(file_name)){ 
+                        remove_path(file_name);                
+                    }else{
+                        string file_path = "../src/client/sync_dir" + file_name + "\n"; 
+                        Packet upload_packet(Packet::CMD_PACKET, Command::UPLOAD, 1, file_path.c_str(), file_path.length());
+                        upload_packet.send_packet(this->sock_cmd);
+                        FileTransfer::send_file(file_path, this->sock_upload);
                     }
                     break;
                 }
                 
                 // deleted files event
                 case IN_DELETE: {
-                    string path = event->name;
-                    path = "/" + path;
-                    cout << "deleted file: " + path;
+                    string file_name = event->name;
+                    file_name = "/" + file_name;
+                    if(contains_path(file_name)){
+                        remove_path(file_name);
+                    }else{
+                        file_name = file_name + "\n";
+                        Packet delete_packet(Packet::CMD_PACKET, Command::DELETE, 1, file_name.c_str(),file_name.length());
+                        delete_packet.send_packet(this->sock_cmd);
+                    }
+
                     break;
                 }
             }
@@ -88,6 +94,7 @@ std::string clientFileManager::erase_dir(std::string path){
         // Delete old sync dir from client to create new sync dir
         for (const auto& entry : fs::directory_iterator(path)) {
             if (fs::is_regular_file(entry)) {
+                this->add_path("/" + entry.path().filename().string());
                 fs::remove(entry);
             }
         }
@@ -114,8 +121,11 @@ void clientFileManager::add_path(string path){
     this->paths.push_back(path);
 }
 
-void clientFileManager::remove_path(string path){
-    this->paths.erase(std::remove(this->paths.begin(), this->paths.end(), path), this->paths.end());
+void clientFileManager::remove_path(std::string path) {
+    auto it = std::find(this->paths.begin(), this->paths.end(), path);
+    if (it != this->paths.end()) {
+        this->paths.erase(it); // Erase only the first occurrence
+    }
 }
 
 bool clientFileManager::contains_path(const std::string path){
