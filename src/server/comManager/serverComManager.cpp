@@ -4,7 +4,7 @@ using namespace std;
 namespace fs = std::filesystem;
 
 #define PORT 4000
-std::mutex dell_user;
+std::mutex access_device_list;
 // CONSTRUCTOR
 serverComManager::serverComManager(ClientList* client_list){ this->client_list = client_list;};
 
@@ -135,12 +135,12 @@ void serverComManager::list_server()
 void serverComManager::end_communications(bool *exit)
 {
 	// Remove client device from server device list
-	dell_user.lock();
+	access_device_list.lock();
     this->client_list->remove_device(
         this->username, 
         tuple<int,int,int>{this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket}
     );
-	dell_user.unlock();
+	access_device_list.unlock();
 
 	// close sockets
 	close(this->client_cmd_socket);
@@ -188,15 +188,19 @@ void serverComManager::start_communications()
 		this->username = username;
 
 		//try to add client to device list
+		access_device_list.lock();
 		bool full_list = this->client_list->add_device(
 			this->username, 
 			tuple<int,int,int>{this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket}
 		);
+		access_device_list.unlock();
 
 		if(full_list){
+			// if list of devices is fully occupied send error packet to signal client to exit
 			Packet error_packet(Packet::ERR, Command::EXIT, 1, "", 0);
 			error_packet.send_packet(this->client_cmd_socket);
 		}else{
+			// if list of devices has free space, allow client to connect and receive sync dir
 			this->file_manager.create_server_sync_dir(username);
 			this->client_list->display_clients();
 			get_sync_dir();	
