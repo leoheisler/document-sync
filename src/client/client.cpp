@@ -40,7 +40,7 @@ class client
                     case 7: command = Command::GET_SYNC_DIR; break;
                     default: command = Command::NO_COMMAND; break;
                 }
-                cout << communication_manager.execute_command(command) << endl;
+                communication_manager.execute_command(command);
             }
         }
 
@@ -54,7 +54,7 @@ class client
 
         void download_from_server()
         {
-            // Receive loop for server->
+            // Receive loop for server->client sync
             while(true){
                 communication_manager.await_sync();
             }

@@ -56,9 +56,7 @@ void serverComManager::delete_server_file(Packet command_packet)
 }
 
 void serverComManager::list_server() 
-{
-    cout << "received list server command from user: " + this->username << std::endl;
-    
+{    
     // Gets the file paths in the user's sync directory
     std::vector<std::string> paths = serverFileManager::get_sync_dir_paths(this->username);
     int total_paths = paths.size();
@@ -128,8 +126,6 @@ void serverComManager::end_communications(bool *exit)
 
 void serverComManager::get_sync_dir()
 {
-	cout << "received get sync dir command from user: " + this->username <<std::endl;
-	
 	std::vector<std::string> paths = serverFileManager::get_sync_dir_paths(this->username);
 	int total_paths = paths.size();
 	if(total_paths == 0){

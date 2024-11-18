@@ -30,7 +30,7 @@ void clientFileManager::check_dir_updates(){
         num_read = read(this->inotifyFd, buf, sizeof(buf));
 
         if (num_read <= 0) {
-            //std::cout << "incorrect read inotify!" <<endl;
+            cout << "incorrect read inotify!" <<endl;
             break;
         }
 
@@ -98,7 +98,6 @@ std::string clientFileManager::erase_dir(std::string path){
 }
 
 std::string clientFileManager::delete_file(std::string file_path) {
-    cout << "CHEGUEI AQUI NO DELETE FILE, com o file:" + file_path <<endl;
     try {
         if (fs::remove(file_path)) {
             return "File deleted successfully.\n";
