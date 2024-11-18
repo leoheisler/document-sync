@@ -73,7 +73,7 @@ void clientComManager::upload()
     cin >> file_path;
 
     // Send packet signaling to server what file it wants to upload
-    Packet upload_command = Packet(Packet::CMD_PACKET, Command::UPLOAD, 1, file_path.c_str(), file_path.length());
+    Packet upload_command = Packet(Packet::CMD_PACKET, Command::UPLOAD, 1, (file_path + "\n").c_str(), (file_path + "\n").length());
     upload_command.send_packet(this->sock_cmd);
 
     // Upload file to server
@@ -86,10 +86,10 @@ void clientComManager::download()
     string file_name;
     cout << "\nInsira o nome do arquivo desejado: ";
     cin >> file_name;
-    file_name = "/" + file_name + "\n";
+    string packet_file_name = "/" + file_name + "\n";
 
     // Send packet signaling to server what file it wants to download
-    Packet download_command = Packet(Packet::CMD_PACKET, Command::DOWNLOAD, 1, file_name.c_str(), file_name.length());
+    Packet download_command = Packet(Packet::CMD_PACKET, Command::DOWNLOAD, 1, packet_file_name.c_str(), packet_file_name.length());
     download_command.send_packet(this->sock_cmd);
     FileTransfer::receive_file("../" + file_name, this->sock_cmd);
 }
@@ -188,10 +188,11 @@ void clientComManager::list_client()
 
 void clientComManager::exit_client()
 {
-    Packet exit_command = Packet(Packet::CMD_PACKET, Command::EXIT, 0, "", 0);
+    Packet exit_command = Packet(Packet::CMD_PACKET, Command::EXIT, 1, "", 0);
     exit_command.send_packet(this->sock_cmd);
     this->close_sockets();
     std::cout << " shutting down... bye bye" << std::endl;
+    exit(EXIT_FAILURE);
 }
 
 void clientComManager::get_sync_dir()
@@ -211,6 +212,11 @@ void clientComManager::receive_sync_dir_files()
     while (true) {
         // Receive a packet
         Packet received_packet = Packet::receive_packet(client_socket);
+        if (received_packet.get_type() == Packet::ERR and received_packet.get_seqn() == Command::EXIT){
+            exit_client();
+            break;
+        }
+
         if (received_packet.get_type() != Packet::DATA_PACKET) {
             cout << this->username + " sync dir is empty" << endl;
             break;

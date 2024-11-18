@@ -42,8 +42,8 @@ void clientFileManager::check_dir_updates(){
                     if(contains_path(file_name)){ 
                         remove_path(file_name);                
                     }else{
-                        string file_path = "../src/client/sync_dir" + file_name + "\n"; 
-                        Packet upload_packet(Packet::CMD_PACKET, Command::UPLOAD, 1, file_path.c_str(), file_path.length());
+                        string file_path = "../src/client/sync_dir" + file_name; 
+                        Packet upload_packet(Packet::CMD_PACKET, Command::UPLOAD, 1, (file_path + "\n").c_str(), (file_path + "\n").length());
                         upload_packet.send_packet(this->sock_cmd);
                         FileTransfer::send_file(file_path, this->sock_upload);
                     }

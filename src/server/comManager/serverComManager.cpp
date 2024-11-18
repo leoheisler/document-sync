@@ -146,7 +146,7 @@ void serverComManager::end_communications(bool *exit)
 	close(this->client_cmd_socket);
 	close(this->client_fetch_socket);
 	close(this->client_upload_socket);
-	cout << "All sockets closed for user:" + this->username <<std::endl;
+	cout << "\nAll sockets closed for user:" + this->username <<std::endl;
 
 	(*exit) = true;
 }
@@ -188,15 +188,20 @@ void serverComManager::start_communications()
 		this->username = username;
 
 		//try to add client to device list
-		this->client_list->add_device(
+		bool full_list = this->client_list->add_device(
 			this->username, 
 			tuple<int,int,int>{this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket}
 		);
-		this->file_manager.create_server_sync_dir(username);
-		this->client_list->display_clients();
-		get_sync_dir();
+
+		if(full_list){
+			Packet error_packet(Packet::ERR, Command::EXIT, 1, "", 0);
+			error_packet.send_packet(this->client_cmd_socket);
+		}else{
+			this->file_manager.create_server_sync_dir(username);
+			this->client_list->display_clients();
+			get_sync_dir();	
+		}
 	}
-	
 }
 
 

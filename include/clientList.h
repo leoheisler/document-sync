@@ -67,91 +67,88 @@ class ClientNode {
 class ClientList {
     private:
         ClientNode* head;  // Head of the linked list
+        const tuple<int, int, int> empty_device{0, 0, 0};
 
     public:
         ClientList() : head(nullptr) {}
 
-        // Method to add a new device to the list
-        void add_device(const std::string& uname, const std::tuple<int, int, int>& device_sockets) {
-            ClientNode* current = head;
+    // Method to add a new device to the list
+    bool add_device(const std::string& uname, const std::tuple<int, int, int>& device_sockets) {
+        ClientNode* current = head;
 
-            // Search for the client node by username
-            while (current != nullptr) {
-                if (current->get_username() == uname) {
-                    // Check if there is a free slot for the new device
-                    if (std::get<0>(current->get_device1_sockets()) == 0 &&
-                        std::get<1>(current->get_device1_sockets()) == 0 &&
-                        std::get<2>(current->get_device1_sockets()) == 0) {
-                        current->set_device1_sockets(std::get<0>(device_sockets), 
-                                                     std::get<1>(device_sockets), 
-                                                     std::get<2>(device_sockets));
-                    } else if (std::get<0>(current->get_device2_sockets()) == 0 &&
-                               std::get<1>(current->get_device2_sockets()) == 0 &&
-                               std::get<2>(current->get_device2_sockets()) == 0) {
-                        current->set_device2_sockets(std::get<0>(device_sockets), 
-                                                     std::get<1>(device_sockets), 
-                                                     std::get<2>(device_sockets));
-                    } else {
-                        throw std::string("CLIENT FULL");
-                    }
-                    return;
+        // Search for the client node by username
+        while (current != nullptr) {
+            if (current->get_username() == uname) {
+                // Check if there is a free slot for the new device
+                if (current->get_device1_sockets() == empty_device) {
+                    current->set_device1_sockets(std::get<0>(device_sockets),
+                                                std::get<1>(device_sockets),
+                                                std::get<2>(device_sockets));
+                } else if (current->get_device2_sockets() == empty_device) {
+                    current->set_device2_sockets(std::get<0>(device_sockets),
+                                                std::get<1>(device_sockets),
+                                                std::get<2>(device_sockets));
+                } else {
+                    std::cout << "CLIENT FULL" << std::endl;
+                    return true;
                 }
-                current = current->get_next();
+                return false;
             }
-
-            // If we reach here, the client was not found, so add a new client
-            ClientNode* new_client = new ClientNode(uname, device_sockets);
-
-            // Insert the new client node at the end of the list
-            if (head == nullptr) {
-                head = new_client;
-            } else {
-                ClientNode* temp = head;
-                while (temp->get_next() != nullptr) {
-                    temp = temp->get_next();  // Move to the end of the list
-                }
-                temp->set_next(new_client);  // Link the new client at the end
-            }
+            current = current->get_next();
         }
 
-        // Method to remove a device by username and socket triple
-        void remove_device(const std::string& uname, const std::tuple<int, int, int>& device_sockets) {
-            ClientNode* current = head;
-            ClientNode* prev = nullptr;
+        // If we reach here, the client was not found, so add a new client
+        ClientNode* new_client = new ClientNode(uname, device_sockets);
 
-            while (current != nullptr) {
-                if (current->get_username() == uname) {
-                    // Check and remove the corresponding device sockets
-                    if (current->get_device1_sockets() == device_sockets) {
-                        current->set_device1_sockets(0, 0, 0);
-                    } else if (current->get_device2_sockets() == device_sockets) {
-                        current->set_device2_sockets(0, 0, 0);
-                    } else {
-                        throw std::string("DEVICE NOT FOUND FOR USER");
-                    }
+        // Insert the new client node at the end of the list
+        if (head == nullptr) {
+            head = new_client;
+        } else {
+            ClientNode* temp = head;
+            while (temp->get_next() != nullptr) {
+                temp = temp->get_next();  // Move to the end of the list
+            }
+            temp->set_next(new_client);  // Link the new client at the end
+        }
+        return false;
+    }
 
-                    // Remove the client if both devices are disconnected
-                    if (std::get<0>(current->get_device1_sockets()) == 0 &&
-                        std::get<1>(current->get_device1_sockets()) == 0 &&
-                        std::get<2>(current->get_device1_sockets()) == 0 &&
-                        std::get<0>(current->get_device2_sockets()) == 0 &&
-                        std::get<1>(current->get_device2_sockets()) == 0 &&
-                        std::get<2>(current->get_device2_sockets()) == 0) {
-                        if (prev == nullptr) {  // Removing the first node
-                            head = current->get_next();
-                        } else {  // Removing an intermediate or last node
-                            prev->set_next(current->get_next());
-                        }
-                        delete current;  // Free the memory
-                    }
+    // Method to remove a device by username and socket triple
+    void remove_device(const std::string& uname, const std::tuple<int, int, int>& device_sockets) {
+        ClientNode* current = head;
+        ClientNode* prev = nullptr;
+
+        while (current != nullptr) {
+            if (current->get_username() == uname) {
+                // Check and remove the corresponding device sockets
+                if (current->get_device1_sockets() == device_sockets) {
+                    current->set_device1_sockets(0, 0, 0); // Clear device 1
+                } else if (current->get_device2_sockets() == device_sockets) {
+                    current->set_device2_sockets(0, 0, 0); // Clear device 2
+                } else {
+                    std::cout << "DEVICE NOT FOUND FOR USER" << std::endl;
                     return;
                 }
-                prev = current;
-                current = current->get_next();
-            }
 
-            throw std::string("CLIENT NOT FOUND");
+                // Remove the client if both devices are disconnected
+                if (current->get_device1_sockets() == empty_device &&
+                    current->get_device2_sockets() == empty_device) {
+                    if (prev == nullptr) {  // Removing the first node
+                        head = current->get_next();
+                    } else {  // Removing an intermediate or last node
+                        prev->set_next(current->get_next());
+                    }
+                    delete current;  // Free the memory
+                }
+                return;
+            }
+            prev = current;
+            current = current->get_next();
         }
+
+        std::cout << "CLIENT NOT FOUND" << std::endl;
+}
+
 
         // Method to retrieve a client node by username
         ClientNode* get_client(const std::string& uname) const {
@@ -163,9 +160,9 @@ class ClientList {
                 }
                 current = current->get_next();  // Move to the next node
             }
-            
             // If the username is not found
-            throw std::string("CLIENT NOT FOUND");
+            cout << "CLIENT NOT FOUND";
+            return nullptr;
         }
 
         // Display all clients in the list (for debugging)
