@@ -23,12 +23,16 @@ void serverComManager::upload(Packet command_packet)
 	ClientNode* client_devices = client_list->get_client(this->username);
 	int device1_socket = client_devices->get_device1_download_socket();
 	int device2_socket = client_devices->get_device2_download_socket();
-	
+
 	Packet file_name_packet(Packet::DATA_PACKET, 1, 1, file_name.c_str(), file_name.size());
-	file_name_packet.send_packet(device1_socket);
-	FileTransfer::send_file(local_file_path, device1_socket);
-	file_name_packet.send_packet(device2_socket);
-	FileTransfer::send_file(local_file_path, device2_socket);
+	if(device1_socket != 0){
+		file_name_packet.send_packet(device1_socket);
+		FileTransfer::send_file(local_file_path, device1_socket);	
+	}
+	if(device2_socket != 0){
+		file_name_packet.send_packet(device2_socket);
+		FileTransfer::send_file(local_file_path, device2_socket);	
+	}
 }
 
 

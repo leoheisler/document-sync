@@ -30,7 +30,7 @@ void clientFileManager::check_dir_updates(){
         num_read = read(this->inotifyFd, buf, sizeof(buf));
 
         if (num_read <= 0) {
-            cout << "incorrect read inotify!" <<endl;
+            //cout << "incorrect read inotify!" <<endl;
             break;
         }
 
