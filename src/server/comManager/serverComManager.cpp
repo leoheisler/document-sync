@@ -5,6 +5,7 @@ namespace fs = std::filesystem;
 
 #define PORT 4000
 std::mutex access_device_list;
+std::mutex access_server_list;
 // CONSTRUCTOR
 serverComManager::serverComManager(ClientList* client_list){ this->client_list = client_list;};
 
@@ -37,6 +38,17 @@ void serverComManager::upload(Packet command_packet)
 	if(device2_socket != 0){
 		file_name_packet_2.send_packet(device2_socket);
 		FileTransfer::send_file(local_file_path, device2_socket);
+	}
+
+	// propagate file to all backup servers (sync)
+	ServerNode* backup_server = server_list->get_first_server();
+	
+	while(backup_server != nullptr){
+		int server_socket = backup_server->get_socket();
+		Packet file_name_packet(Packet::DATA_PACKET, 1, 1, file_name.c_str(), file_name.size());
+		file_name_packet.send_packet(server_socket);
+		FileTransfer::send_file(local_file_path, server_socket);
+		backup_server = backup_server->get_next();
 	}
 }
 
@@ -188,28 +200,36 @@ void serverComManager::start_communications()
 	std::string file_path;
 	
 	if(payload != nullptr){
-		// Extract username and client socket from packet payload
-		std::string username = strtok(payload, "\n");
-		this->username = username;
-
-		//try to add client to device list
-		access_device_list.lock();
-		bool full_list = this->client_list->add_device(
-			this->username, 
-			tuple<int,int,int>{this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket}
-		);
-		access_device_list.unlock();
-
-		if(full_list){
-			// if list of devices is fully occupied send error packet to signal client to exit
-			Packet error_packet(Packet::ERR, Command::EXIT, 1, "", 0);
-			error_packet.send_packet(this->client_cmd_socket);
+		if(this->is_backup_server){
+			// Add backup server to the servers list
+			access_server_list.lock();
+			this->server_list->add_server(this->client_cmd_socket);
+			access_server_list.unlock();
 		}else{
-			// if list of devices has free space, allow client to connect and receive sync dir
-			this->file_manager.create_server_sync_dir(username);
-			this->client_list->display_clients();
-			get_sync_dir();	
+			// Extract username and client socket from packet payload
+			std::string username = strtok(payload, "\n");
+			this->username = username;
+
+			//try to add client to device list
+			access_device_list.lock();
+			bool full_list = this->client_list->add_device(
+				this->username, 
+				tuple<int,int,int>{this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket}
+			);
+			access_device_list.unlock();
+
+			if(full_list){
+				// if list of devices is fully occupied send error packet to signal client to exit
+				Packet error_packet(Packet::ERR, Command::EXIT, 1, "", 0);
+				error_packet.send_packet(this->client_cmd_socket);
+			}else{
+				// if list of devices has free space, allow client to connect and receive sync dir
+				this->file_manager.create_server_sync_dir(username);
+				this->client_list->display_clients();
+				get_sync_dir();	
+			}
 		}
+
 	}
 }
 
@@ -271,18 +291,21 @@ serverStatus serverComManager::bind_client_sockets(int server_socket, int first_
 	socklen_t clilen = sizeof(struct sockaddr_in);
 	this->client_cmd_socket = first_comm_socket;
 
-    if ((this->client_upload_socket = accept(server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
-        printf("ERROR on accept upload socket\n");
-        return serverStatus::FAILED_TO_ACCEPT_UPLOAD_SOCKET; // Retorna o erro apropriado
-    }
+	// Only primary servers need additional upload and fetch sockets
+	if(!this->is_backup_server){
+		if ((this->client_upload_socket = accept(server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
+			printf("ERROR on accept upload socket\n");
+			return serverStatus::FAILED_TO_ACCEPT_UPLOAD_SOCKET; // Retorna o erro apropriado
+		}
 
-    if ((this->client_fetch_socket = accept(server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
-        printf("ERROR on accept fetch socket\n");
-        return serverStatus::FAILED_TO_ACCEPT_FETCH_SOCKET; // Retorna o erro apropriado
-    }
-	start_communications();	 
+		if ((this->client_fetch_socket = accept(server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
+			printf("ERROR on accept fetch socket\n");
+			return serverStatus::FAILED_TO_ACCEPT_FETCH_SOCKET; // Retorna o erro apropriado
+		}
+	}
+
+	start_communications(is_backup_server);	 
 	return serverStatus::OK;
-		
 }
 
 std::string serverComManager::get_username(){

@@ -24,7 +24,6 @@ void clientComManager::start_sockets()
     if ((this->sock_fetch = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
         cout << "ERROR opening fetch socket\n";
     
-                    
 }
 
 void clientComManager::connect_sockets(int port, hostent* server)

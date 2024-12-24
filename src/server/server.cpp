@@ -15,7 +15,6 @@
 std::mutex connect_hand;
 
 serverStatus bind_server_socket(int* server_socket){
-
 	struct sockaddr_in serv_addr;
 
 	if ((*server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -23,7 +22,6 @@ serverStatus bind_server_socket(int* server_socket){
 		return serverStatus::FAILED_TO_CREATE_SOCKET;
 	}
         
-	
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_port = htons(PORT);
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
@@ -32,7 +30,6 @@ serverStatus bind_server_socket(int* server_socket){
 		cout << ("ERROR on binding");
 		return serverStatus::FAILED_TO_BIND_SOCKET;
 	} 
-		
 
 	return serverStatus::OK;
 }
@@ -67,6 +64,7 @@ int main(int argc, char *argv[])
 
 	// Linked list to store client infos 
     ClientList client_device_list;
+	ServerList server_list;
 
 	//BIND MAIN SOCKET
 	serverStatus isBinded = bind_server_socket(&server_socket);

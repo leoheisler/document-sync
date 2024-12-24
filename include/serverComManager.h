@@ -17,6 +17,7 @@
 #include <netdb.h> 
 #include <iostream>
 #include "clientList.h"
+#include "serverList.h"
 #include "packet.h"
 #include "serverStatus.h"
 #include "serverFileManager.h"
@@ -27,8 +28,10 @@ class serverComManager
 {
     private: 
         ClientList* client_list;
+        ServerList* server_list;
         serverFileManager file_manager;
         std::string username = "";
+        bool is_backup_server = false;
         int client_cmd_socket = -1;
         int client_upload_socket= -1; 
         int client_fetch_socket = -1;
