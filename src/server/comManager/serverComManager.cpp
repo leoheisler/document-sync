@@ -191,7 +191,7 @@ void serverComManager::get_sync_dir()
 	
 	for(size_t i = 0; i < total_paths; ++i){
 		// Packet payload -> file path, total files being transfered, index of current file being transfered
-		std::string payload = paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i);
+		std::string payload = paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i) + "\n";
 
 		// Create and send packet with file infos
 		Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
@@ -205,32 +205,21 @@ void serverComManager::get_sync_dir()
 
 void serverComManager::backup_sync_dir(int socket)
 {
-	access_device_list.lock();
+	std::vector<std::string> all_paths = file_manager.get_sync_dir_files_in_directory("../src/server/userDirectories");	
+	int total_paths = all_paths.size();
+	
+	// Loop to send each path and file to the backup server
+	for(size_t i = 0; i < total_paths; ++i){
+		// Packet payload -> file path, total files being transfered, index of current file being transfered
+		std::string payload = all_paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i) + "\n";
 
-	ClientNode* client = client_list->get_first_client();
-	while(client != nullptr)
-	{
-		string username = client->get_username();
-		std::vector<std::string> paths = serverFileManager::get_sync_dir_paths(username);
-		int total_paths = paths.size();
-		
-		for(size_t i = 0; i < total_paths; ++i){
-			// Packet payload -> file path, total files being transfered, index of current file being transfered
-			std::string payload = paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i);
+		// Create and send packet with file infos
+		Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
+		get_sync_command.send_packet(socket);
 
-			// Create and send packet with file infos
-			Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
-			get_sync_command.send_packet(socket);
-
-			// Send file
-			FileTransfer::send_file(paths[i], socket);
-		}
-
-		// Skip to next client
-		client = client->get_next();
+		// Send file
+		FileTransfer::send_file(all_paths[i], socket);
 	}
-
-	access_device_list.unlock();
 }
 
 void serverComManager::start_communications()
@@ -359,8 +348,9 @@ serverStatus serverComManager::bind_client_sockets(int server_socket, int first_
 void serverComManager::add_backup_server(int backup_server_socket)
 {
 	access_server_list.lock();
-	this->server_list->add_server(this->client_cmd_socket);
+	this->server_list->add_server(backup_server_socket);
 	this->server_list->display_servers();
+	backup_sync_dir(backup_server_socket);
 	access_server_list.unlock();
 }
 

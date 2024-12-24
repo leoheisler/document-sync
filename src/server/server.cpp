@@ -47,15 +47,22 @@ serverStatus setup_backup_server_socket(int port, hostent* server, int* server_s
 	serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
 	bzero(&(serv_addr.sin_zero), 8);  
 
-    if (connect(*server_socket, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
-        cout << "ERROR connecting cmd socket\n";
-    else
+    if (connect(*server_socket, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0){
+        cout << "ERROR connecting backup server socket\n";
+		return serverStatus::FAILED_TO_CREATE_SOCKET;
+	}else
         cout <<"backup server socket connected\n";
+
+	Packet handshake_packet = Packet::receive_packet(*server_socket);
+	
+	// Send packet to communicate to main server that it is a backup server
+    Packet ack_packet(Packet::COMM_PACKET, 0, 1, "", 0);
+    ack_packet.send_packet(*server_socket);
 
 	return serverStatus::OK;
 }
 
-void connection_handler(int server_socket, int first_contact_socket,ClientList* client_device_list, ServerList* backup_server_list){
+void connection_handler(int server_socket, int first_contact_socket, ClientList* client_device_list, ServerList* backup_server_list){
 	// Create a server comm manager for the connection
 	serverComManager server_comm(client_device_list, backup_server_list);
 
@@ -70,6 +77,7 @@ void connection_handler(int server_socket, int first_contact_socket,ClientList* 
 	}else{
 		// Client is a backup server
 		server_comm.add_backup_server(first_contact_socket);
+		return;
 	}
 	
 	// Let other threads be created
@@ -130,6 +138,7 @@ int main(int argc, char *argv[])
 		server = gethostbyname(argv[1]);
 		port = atoi(argv[2]);
 		setup_backup_server_socket(port, server, &server_socket);
+		serverFileManager::receive_sync_dir_files(server_socket);
 
 		// Infinite loop awaiting syncronizations from main server
 		while(!elected){
