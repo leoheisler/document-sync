@@ -40,6 +40,7 @@ class serverComManager
         void start_communications();
         void end_communications(bool* exit);
         void get_sync_dir();
+        void backup_sync_dir(int socket);
         void download(Packet command_packet);
         void list_server();
         void upload(Packet command_packet);
@@ -47,9 +48,11 @@ class serverComManager
         
     public:
         // Constructor Method
-        serverComManager(ClientList* client_list);
+        serverComManager(ClientList* client_list, ServerList* server_list);
         void await_command_packet();
+        static void await_sync(int socket);
         serverStatus bind_client_sockets(int server_socket, int first_comm_socket);
+        void add_backup_server(int backup_server_socket);
         std::string get_username();
 };
 #endif

@@ -113,6 +113,11 @@ class ClientList {
         return false;
     }
 
+    ClientNode* get_first_client()
+    {
+        return head;
+    }
+
     // Method to remove a device by username and socket triple
     void remove_device(const std::string& uname, const std::tuple<int, int, int>& device_sockets) {
         ClientNode* current = head;

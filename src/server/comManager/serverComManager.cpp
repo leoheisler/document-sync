@@ -7,7 +7,7 @@ namespace fs = std::filesystem;
 std::mutex access_device_list;
 std::mutex access_server_list;
 // CONSTRUCTOR
-serverComManager::serverComManager(ClientList* client_list){ this->client_list = client_list;};
+serverComManager::serverComManager(ClientList* client_list, ServerList* server_list){ this->client_list = client_list; this->server_list = server_list;};
 
 // PRIVATE METHODS
 void serverComManager::upload(Packet command_packet)
@@ -42,11 +42,12 @@ void serverComManager::upload(Packet command_packet)
 
 	// propagate file to all backup servers (sync)
 	ServerNode* backup_server = server_list->get_first_server();
+	local_file_path += "\n";
 	
 	while(backup_server != nullptr){
 		int server_socket = backup_server->get_socket();
-		Packet file_name_packet(Packet::DATA_PACKET, 1, 1, file_name.c_str(), file_name.size());
-		file_name_packet.send_packet(server_socket);
+		Packet file_path_packet(Packet::DATA_PACKET, 1, 1, local_file_path.c_str(), local_file_path.size());
+		file_path_packet.send_packet(server_socket);
 		FileTransfer::send_file(local_file_path, server_socket);
 		backup_server = backup_server->get_next();
 	}
@@ -96,7 +97,16 @@ void serverComManager::delete_server_file(Packet command_packet)
 		file_name_packet_2.send_packet(device2_socket);
 	}
 
+	// Propagate delete to all backup servers (sync)
+	ServerNode* backup_server = server_list->get_first_server();
+	file_path += "\n";
 
+	while(backup_server != nullptr){
+		int server_socket = backup_server->get_socket();
+		Packet file_name_packet(Packet::CMD_PACKET, Command::DELETE, 1, file_path.c_str(), file_path.size());
+		file_name_packet.send_packet(server_socket);
+		backup_server = backup_server->get_next();
+	}
 }
 
 void serverComManager::list_server() 
@@ -193,6 +203,36 @@ void serverComManager::get_sync_dir()
 	}
 }
 
+void serverComManager::backup_sync_dir(int socket)
+{
+	access_device_list.lock();
+
+	ClientNode* client = client_list->get_first_client();
+	while(client != nullptr)
+	{
+		string username = client->get_username();
+		std::vector<std::string> paths = serverFileManager::get_sync_dir_paths(username);
+		int total_paths = paths.size();
+		
+		for(size_t i = 0; i < total_paths; ++i){
+			// Packet payload -> file path, total files being transfered, index of current file being transfered
+			std::string payload = paths[i] + "\n" + std::to_string(total_paths) + "\n" + std::to_string(i);
+
+			// Create and send packet with file infos
+			Packet get_sync_command(Packet::DATA_PACKET, 1, 1, payload.c_str(), payload.size());
+			get_sync_command.send_packet(socket);
+
+			// Send file
+			FileTransfer::send_file(paths[i], socket);
+		}
+
+		// Skip to next client
+		client = client->get_next();
+	}
+
+	access_device_list.unlock();
+}
+
 void serverComManager::start_communications()
 {	
 	Packet starter_packet = Packet::receive_packet(this->client_cmd_socket);
@@ -200,36 +240,28 @@ void serverComManager::start_communications()
 	std::string file_path;
 	
 	if(payload != nullptr){
-		if(this->is_backup_server){
-			// Add backup server to the servers list
-			access_server_list.lock();
-			this->server_list->add_server(this->client_cmd_socket);
-			access_server_list.unlock();
+		// Extract username and client socket from packet payload
+		std::string username = strtok(payload, "\n");
+		this->username = username;
+
+		//try to add client to device list
+		access_device_list.lock();
+		bool full_list = this->client_list->add_device(
+			this->username, 
+			tuple<int,int,int>{this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket}
+		);
+		access_device_list.unlock();
+
+		if(full_list){
+			// if list of devices is fully occupied send error packet to signal client to exit
+			Packet error_packet(Packet::ERR, Command::EXIT, 1, "", 0);
+			error_packet.send_packet(this->client_cmd_socket);
 		}else{
-			// Extract username and client socket from packet payload
-			std::string username = strtok(payload, "\n");
-			this->username = username;
-
-			//try to add client to device list
-			access_device_list.lock();
-			bool full_list = this->client_list->add_device(
-				this->username, 
-				tuple<int,int,int>{this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket}
-			);
-			access_device_list.unlock();
-
-			if(full_list){
-				// if list of devices is fully occupied send error packet to signal client to exit
-				Packet error_packet(Packet::ERR, Command::EXIT, 1, "", 0);
-				error_packet.send_packet(this->client_cmd_socket);
-			}else{
-				// if list of devices has free space, allow client to connect and receive sync dir
-				this->file_manager.create_server_sync_dir(username);
-				this->client_list->display_clients();
-				get_sync_dir();	
-			}
+			// if list of devices has free space, allow client to connect and receive sync dir
+			this->file_manager.create_server_sync_dir(username);
+			this->client_list->display_clients();
+			get_sync_dir();	
 		}
-
 	}
 }
 
@@ -286,28 +318,53 @@ void serverComManager::await_command_packet()
 	}
 }
 
-serverStatus serverComManager::bind_client_sockets(int server_socket, int first_comm_socket){
+// This is the command the backup server uses to await syncronizations
+void serverComManager::await_sync(int socket)
+{
+    Packet received_packet = Packet::receive_packet(socket);
+
+    // CMD_PACKET == DELETE SYNC
+    if (received_packet.get_type() == Packet::CMD_PACKET) {
+        string file_path = strtok(received_packet.get_payload(), "\n");        
+        serverFileManager::delete_file(file_path);
+
+    // DATA_PACKET == DOWNLOAD SYNC
+    }else if(received_packet.get_type() == Packet::DATA_PACKET){
+        string file_path = strtok(received_packet.get_payload(), "\n");        
+        FileTransfer::receive_file(file_path, socket);
+    }
+}
+
+serverStatus serverComManager::bind_client_sockets(int server_socket, int first_comm_socket)
+{
 	struct sockaddr_in cli_addr;
 	socklen_t clilen = sizeof(struct sockaddr_in);
 	this->client_cmd_socket = first_comm_socket;
 
 	// Only primary servers need additional upload and fetch sockets
-	if(!this->is_backup_server){
-		if ((this->client_upload_socket = accept(server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
-			printf("ERROR on accept upload socket\n");
-			return serverStatus::FAILED_TO_ACCEPT_UPLOAD_SOCKET; // Retorna o erro apropriado
-		}
-
-		if ((this->client_fetch_socket = accept(server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
-			printf("ERROR on accept fetch socket\n");
-			return serverStatus::FAILED_TO_ACCEPT_FETCH_SOCKET; // Retorna o erro apropriado
-		}
+	if ((this->client_upload_socket = accept(server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
+		printf("ERROR on accept upload socket\n");
+		return serverStatus::FAILED_TO_ACCEPT_UPLOAD_SOCKET; // Retorna o erro apropriado
 	}
 
-	start_communications(is_backup_server);	 
+	if ((this->client_fetch_socket = accept(server_socket, (struct sockaddr *)&cli_addr, &clilen)) == -1) {
+		printf("ERROR on accept fetch socket\n");
+		return serverStatus::FAILED_TO_ACCEPT_FETCH_SOCKET; // Retorna o erro apropriado
+	}
+
+	start_communications();	 
 	return serverStatus::OK;
 }
 
-std::string serverComManager::get_username(){
+void serverComManager::add_backup_server(int backup_server_socket)
+{
+	access_server_list.lock();
+	this->server_list->add_server(this->client_cmd_socket);
+	this->server_list->display_servers();
+	access_server_list.unlock();
+}
+
+std::string serverComManager::get_username()
+{
 	return this->username;
 }

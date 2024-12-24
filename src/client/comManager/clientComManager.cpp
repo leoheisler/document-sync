@@ -28,7 +28,6 @@ void clientComManager::start_sockets()
 
 void clientComManager::connect_sockets(int port, hostent* server)
 {
-
     struct sockaddr_in serv_addr;
 
     serv_addr.sin_family = AF_INET;     
@@ -52,8 +51,11 @@ void clientComManager::connect_sockets(int port, hostent* server)
             cout << "ERROR connecting fetch socket\n";
         else
             cout <<"fetch socket connected\n";
-
     }
+
+    // Send packet to communicate to main server that it is a client
+    Packet ack_packet(Packet::COMM_PACKET, 1, 1, "", 0);
+    ack_packet.send_packet(this->sock_cmd);
 }
 
 void clientComManager::close_sockets()
