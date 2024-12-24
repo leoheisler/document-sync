@@ -28,7 +28,8 @@ class Packet {
             ERR = 0x0000,
             DATA_PACKET = 0x0001,
             CMD_PACKET = 0x0002,
-            COMM_PACKET = 0x0003
+            COMM_PACKET = 0x0003,
+            NODE_PACKET = 0x0004,
         };
 
         // Constant for total packet size in bytes

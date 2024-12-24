@@ -321,7 +321,9 @@ void serverComManager::await_sync(int socket)
     }else if(received_packet.get_type() == Packet::DATA_PACKET){
         string file_path = strtok(received_packet.get_payload(), "\n");        
         FileTransfer::receive_file(file_path, socket);
-    }
+    }else if(received_packet.get_type() == Packet::NODE_PACKET){
+		
+	}
 }
 
 serverStatus serverComManager::bind_client_sockets(int server_socket, int first_comm_socket)
