@@ -46,21 +46,22 @@ void main_server_connection_handler(int server_socket, int first_contact_socket,
 	if(ack_packet.get_seqn()){
 		// Client is an user device
 		server_comm.bind_client_sockets(server_socket, first_contact_socket);
+		connect_hand.unlock();
+		server_comm.await_command_packet();
 	}else{
 		// Client is a backup server
-		server_comm.add_backup_server(first_contact_socket);
-		return;
+		connect_hand.unlock();
+		string server_hostname = strtok(ack_packet.get_payload(), "\n");
+		server_comm.add_backup_server(first_contact_socket, server_hostname);
+		while(true);
 	}
 	
-	// Let other threads be created
-	connect_hand.unlock();
+
 	
-	// Command loop
-	server_comm.await_command_packet();
 	cout << "liberating memory and ending thread for user: " + server_comm.get_username() << std::endl;
 }
 
-serverStatus setup_backup_server_socket(int port, hostent* server, int* server_socket){
+serverStatus setup_backup_server_socket(int port, string hostname, hostent* server, int* server_socket){
 	struct sockaddr_in serv_addr;
 
 	if ((*server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -82,7 +83,7 @@ serverStatus setup_backup_server_socket(int port, hostent* server, int* server_s
 	Packet handshake_packet = Packet::receive_packet(*server_socket);
 	
 	// Send packet to communicate to main server that it is a backup server
-    Packet ack_packet(Packet::COMM_PACKET, 0, 1, "", 0);
+    Packet ack_packet(Packet::COMM_PACKET, 0, 1, (hostname + "\n").c_str(), (hostname + "\n").size());
     ack_packet.send_packet(*server_socket);
 
 	return serverStatus::OK;
@@ -139,11 +140,13 @@ int main(int argc, char *argv[])
     
 		server = gethostbyname(argv[1]);
 		port = atoi(argv[2]);
-		setup_backup_server_socket(port, server, &server_socket);
+		setup_backup_server_socket(port, argv[1], server, &server_socket);
+		
 		serverFileManager::receive_sync_dir_files(server_socket);
 
 		// Infinite loop awaiting syncronizations from main server
-		serverComManager::await_sync(server_socket, &elected);
+		serverComManager com_manager(&client_device_list, &server_list);
+		com_manager.await_sync(server_socket, &elected);
 	}
 
 

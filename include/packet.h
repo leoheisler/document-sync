@@ -29,8 +29,9 @@ class Packet {
             DATA_PACKET = 0x0001,
             CMD_PACKET = 0x0002,
             COMM_PACKET = 0x0003,
-            HEARTBEAT_PACKET = 0x0004,
-            ELECTION_PACKET = 0x0005,
+            NODE_PACKET = 0x0004,
+            HEARTBEAT_PACKET = 0x0005,
+            ELECTION_PACKET = 0x0006,
         };
 
         // Constant for total packet size in bytes

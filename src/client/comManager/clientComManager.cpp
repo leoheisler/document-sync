@@ -201,7 +201,7 @@ void clientComManager::get_sync_dir()
     //first erase everything that was in clint sync_dir, we dont want other clients files in new clients directory
     cout << this->file_manager->erase_dir("../src/client/sync_dir") << endl;
     // Send packet signaling server to execute get_sync_dir with client info (username and socket)
-    string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
+    string client_info = (get_username() + "\n" + get_hostname() + "\n");
     Packet get_sync_command = Packet(Packet::CMD_PACKET, Command::GET_SYNC_DIR, 1, client_info.c_str(), client_info.length());
     get_sync_command.send_packet(this->sock_cmd);
 }
@@ -314,6 +314,7 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
     struct hostent *server;
     
 	set_username(argv[1]);
+    set_hostname(argv[2]);
 	server = gethostbyname(argv[2]);
     port = atoi(argv[3]);
 
@@ -361,6 +362,8 @@ void clientComManager::await_sync()
 // GETTERS & SETTERS
 std::string clientComManager::get_username(){ return this->username; }
 void clientComManager::set_username(std::string username){ this->username = username; }
+std::string clientComManager::get_hostname(){ return this->hostname; }
+void clientComManager::set_hostname(std::string hostname){ this->hostname = hostname; }
 
 // asks for the file that will be deleted and sends request with file and username
 void clientComManager::send_delete_request(std::string file_name)

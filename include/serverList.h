@@ -4,25 +4,31 @@
 #include <iostream>
 
 class ServerNode {
-private:
-    int socket;             // Socket number of the server
-    ServerNode* next;       // Pointer to the next node
+    private:
+        int socket;             // Socket number of the server
+        std::string hostname;   // Hostname of the server
+        ServerNode* next;       // Pointer to the next node
 
-public:
-    // Constructor
-    ServerNode(int sock) : socket(sock), next(nullptr) {}
+    public:
+        // Constructor
+        ServerNode(int sock, const std::string& host = "")
+            : socket(sock), hostname(host), next(nullptr) {}
 
-    // Getters and Setters
-    int get_socket() const { return socket; }
-    void set_socket(int sock) { socket = sock; }
+        // Getters and Setters
+        int get_socket() const { return socket; }
+        void set_socket(int sock) { socket = sock; }
 
-    ServerNode* get_next() const { return next; }
-    void set_next(ServerNode* next_node) { next = next_node; }
+        const std::string& get_hostname() const { return hostname; }
+        void set_hostname(const std::string& host) { hostname = host; }
 
-    // Display server info (for debugging)
-    void display() const {
-        std::cout << "Server Socket: " << socket << std::endl;
-    }
+        ServerNode* get_next() const { return next; }
+        void set_next(ServerNode* next_node) { next = next_node; }
+
+        // Display server info (for debugging)
+        void display() const {
+            std::cout << "Server Socket: " << socket
+                    << ", Hostname: " << hostname << std::endl;
+        }
 };
 
 class ServerList {
@@ -34,8 +40,8 @@ public:
     ServerList() : head(nullptr) {}
 
     // Method to add a server to the list
-    void add_server(int socket) {
-        ServerNode* new_server = new ServerNode(socket);
+    void add_server(int socket, const std::string& hostname) {
+        ServerNode* new_server = new ServerNode(socket, hostname);
         if (head == nullptr) {
             head = new_server;  // Add as the first node
         } else {
@@ -91,6 +97,7 @@ public:
     // Display all servers in the list (for debugging)
     void display_servers() const {
         ServerNode* current = head;
+        cout << endl;
         while (current != nullptr) {
             current->display();
             current = current->get_next();

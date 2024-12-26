@@ -236,16 +236,22 @@ void serverComManager::start_communications()
 	std::string file_path;
 	
 	if(payload != nullptr){
-		// Extract username and client socket from packet payload
+		// Extract username and hostname from packet payload
 		std::string username = strtok(payload, "\n");
+		std::string hostname = strtok(nullptr, "\n");
 		this->username = username;
+		this->hostname = hostname;
 
 		//try to add client to device list
+		bool full_list;
 		access_device_list.lock();
-		bool full_list = this->client_list->add_device(
-			this->username, 
-			tuple<int,int,int>{this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket}
-		);
+		{
+			full_list = this->client_list->add_device(
+				this->username, 
+				this->hostname,
+				tuple<int,int,int>{this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket}
+			);
+		}
 		access_device_list.unlock();
 
 		if(full_list){
@@ -365,9 +371,18 @@ void serverComManager::await_sync(int socket, bool* elected)
 				break;
 			}
 
+			// NODE_PACKET == CLIENT/SERVER LIST SYNC
+			case Packet::NODE_PACKET:
+			{
+				// seqn == 1 <=> Client node
+
+				// seqn == 0 <=> Backup Server node
+				break;
+			}
+
 			case Packet::HEARTBEAT_PACKET:
 			{
-				cout << "hearbeat..." << endl;
+				cout << "received heartbeat..." << endl;
 				break;
 			}
 		}
@@ -381,7 +396,7 @@ void serverComManager::heartbeat_protocol(ServerList* server_list)
 	while(true){
 		// Propagate heartbeat packet to all backup servers every 5 seconds
 		std::this_thread::sleep_for(std::chrono::seconds(5)); 
-		cout << "sending heartbeat" << endl;
+		// cout << "sending heartbeat" << endl;
 
 		ServerNode* backup_server = server_list->get_first_server();
 		
@@ -415,12 +430,14 @@ serverStatus serverComManager::bind_client_sockets(int server_socket, int first_
 	return serverStatus::OK;
 }
 
-void serverComManager::add_backup_server(int backup_server_socket)
+void serverComManager::add_backup_server(int backup_server_socket, string hostname)
 {
 	access_server_list.lock();
-	this->server_list->add_server(backup_server_socket);
-	//this->server_list->display_servers();
-	backup_sync_dir(backup_server_socket);
+	{
+		this->server_list->add_server(backup_server_socket, hostname);
+		this->server_list->display_servers();
+		backup_sync_dir(backup_server_socket);
+	}
 	access_server_list.unlock();
 }
 

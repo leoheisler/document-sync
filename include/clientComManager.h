@@ -26,6 +26,7 @@ class clientComManager
 {
     private: 
         std::string username;
+        std::string hostname;
         int sock_cmd = -1;
         int sock_upload = -1;
         int sock_fetch = -1;
@@ -67,6 +68,10 @@ class clientComManager
         // Getters & Setters
         std::string get_username();
         void set_username(std::string username);
+        std::string get_hostname();
+        void set_hostname(std::string hostname);
+
+
         void send_delete_request(std::string file_name);
 
         // Sett client file handler

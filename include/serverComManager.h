@@ -32,7 +32,7 @@ class serverComManager
         ServerList* server_list;
         serverFileManager file_manager;
         std::string username = "";
-        bool is_backup_server = false;
+        std::string hostname = "";
         int client_cmd_socket = -1;
         int client_upload_socket= -1; 
         int client_fetch_socket = -1;
@@ -52,10 +52,10 @@ class serverComManager
         // Constructor Method
         serverComManager(ClientList* client_list, ServerList* server_list);
         void await_command_packet();
-        static void await_sync(int socket, bool* elected);
+        void await_sync(int socket, bool* elected);
         static void heartbeat_protocol(ServerList* server_list);
         serverStatus bind_client_sockets(int server_socket, int first_comm_socket);
-        void add_backup_server(int backup_server_socket);
+        void add_backup_server(int backup_server_socket, string hostname);
         std::string get_username();
 };
 #endif
