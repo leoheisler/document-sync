@@ -6,6 +6,8 @@ namespace fs = std::filesystem;
 #define PORT 4000
 std::mutex access_device_list;
 std::mutex access_server_list;
+std::mutex access_heartbeat_time;
+
 // CONSTRUCTOR
 serverComManager::serverComManager(ClientList* client_list, ServerList* server_list){ this->client_list = client_list; this->server_list = server_list;};
 
@@ -51,7 +53,6 @@ void serverComManager::upload(Packet command_packet)
 		backup_server = backup_server->get_next();
 	}
 }
-
 
 void serverComManager::download(Packet command_packet)
 {
@@ -206,6 +207,13 @@ void serverComManager::backup_sync_dir(int socket)
 {
 	std::vector<std::string> all_paths = file_manager.get_sync_dir_files_in_directory("../src/server/userDirectories");	
 	int total_paths = all_paths.size();
+
+	if(total_paths == 0){
+		// If user sync dir is empty, warns client to not wait for file reception
+		Packet dont_receive_files(Packet::ERR, 1, 1, "", 0);
+		dont_receive_files.send_packet(socket);
+		return;
+	}
 	
 	// Loop to send each path and file to the backup server
 	for(size_t i = 0; i < total_paths; ++i){
@@ -253,9 +261,26 @@ void serverComManager::start_communications()
 	}
 }
 
+void serverComManager::election_timer(time_t* last_heartbeat)
+{
+	time_t current_time;
+
+	while(true){
+		std::this_thread::sleep_for(std::chrono::seconds(15)); 
+		current_time = time(NULL);
+
+		access_heartbeat_time.lock();
+		{
+			double elapsed_seconds_after_heartbeat = difftime(current_time, *last_heartbeat);
+			if(elapsed_seconds_after_heartbeat > 15){
+                std::cout << "More than 15 seconds have passed since last heartbeat!" << std::endl;
+			}
+		}
+		access_heartbeat_time.unlock();
+	}
+}
 
 // PUBLIC METHODS
-
 // This is the interface on server that will delegate each method based on commands.
 void serverComManager::await_command_packet()
 {
@@ -307,21 +332,65 @@ void serverComManager::await_command_packet()
 }
 
 // This is the command the backup server uses to await syncronizations
-void serverComManager::await_sync(int socket)
+void serverComManager::await_sync(int socket, bool* elected)
 {
-    Packet received_packet = Packet::receive_packet(socket);
+	time_t last_heartbeat = time(NULL);
+	std::thread heartbeat_timeout(election_timer, &last_heartbeat);
+	heartbeat_timeout.detach();
 
-    // CMD_PACKET == DELETE SYNC
-    if (received_packet.get_type() == Packet::CMD_PACKET) {
-        string file_path = strtok(received_packet.get_payload(), "\n");        
-        serverFileManager::delete_file(file_path);
+	while(!(*elected))
+	{
+		Packet received_packet = Packet::receive_packet(socket);
 
-    // DATA_PACKET == DOWNLOAD SYNC
-    }else if(received_packet.get_type() == Packet::DATA_PACKET){
-        string file_path = strtok(received_packet.get_payload(), "\n");        
-        FileTransfer::receive_file(file_path, socket);
-    }else if(received_packet.get_type() == Packet::NODE_PACKET){
+		access_heartbeat_time.lock();
+		{
+			last_heartbeat = time(NULL);
+		}
+		access_heartbeat_time.unlock();
+
+		switch(received_packet.get_type()){
+			// CMD_PACKET == DELETE SYNC
+			case Packet::CMD_PACKET:
+			{
+				string file_path = strtok(received_packet.get_payload(), "\n");        
+				serverFileManager::delete_file(file_path);
+				break;
+			}
+
+			// DATA_PACKET == DOWNLOAD SYNC
+			case Packet::DATA_PACKET:
+			{
+				string file_path = strtok(received_packet.get_payload(), "\n");        
+				FileTransfer::receive_file(file_path, socket);	
+				break;
+			}
+
+			case Packet::HEARTBEAT_PACKET:
+			{
+				cout << "hearbeat..." << endl;
+				break;
+			}
+		}
+	}
+}
+
+void serverComManager::heartbeat_protocol(ServerList* server_list)
+{
+	std::thread(election_timer);
+
+	while(true){
+		// Propagate heartbeat packet to all backup servers every 5 seconds
+		std::this_thread::sleep_for(std::chrono::seconds(5)); 
+		cout << "sending heartbeat" << endl;
+
+		ServerNode* backup_server = server_list->get_first_server();
 		
+		while(backup_server != nullptr){
+			int server_socket = backup_server->get_socket();
+			Packet* file_path_packet = new Packet(Packet::HEARTBEAT_PACKET, 1, 1, "", 1);
+			file_path_packet->send_packet(server_socket);
+			backup_server = backup_server->get_next();
+		}
 	}
 }
 

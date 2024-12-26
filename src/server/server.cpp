@@ -14,7 +14,7 @@
 #define PORT 4000
 std::mutex connect_hand;
 
-serverStatus bind_server_socket(int* server_socket){
+serverStatus bind_main_server_socket(int* server_socket){
 	struct sockaddr_in serv_addr;
 
 	if ((*server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -32,6 +32,32 @@ serverStatus bind_server_socket(int* server_socket){
 	} 
 
 	return serverStatus::OK;
+}
+
+void main_server_connection_handler(int server_socket, int first_contact_socket, ClientList* client_device_list, ServerList* backup_server_list){
+	// Create a server comm manager for the connection
+	serverComManager server_comm(client_device_list, backup_server_list);
+
+	// Send a handshake to client
+	Packet handshake_packet(first_contact_socket);
+	handshake_packet.send_packet(first_contact_socket);
+
+	Packet ack_packet = Packet::receive_packet(first_contact_socket);
+	if(ack_packet.get_seqn()){
+		// Client is an user device
+		server_comm.bind_client_sockets(server_socket, first_contact_socket);
+	}else{
+		// Client is a backup server
+		server_comm.add_backup_server(first_contact_socket);
+		return;
+	}
+	
+	// Let other threads be created
+	connect_hand.unlock();
+	
+	// Command loop
+	server_comm.await_command_packet();
+	cout << "liberating memory and ending thread for user: " + server_comm.get_username() << std::endl;
 }
 
 serverStatus setup_backup_server_socket(int port, hostent* server, int* server_socket){
@@ -62,33 +88,6 @@ serverStatus setup_backup_server_socket(int port, hostent* server, int* server_s
 	return serverStatus::OK;
 }
 
-void connection_handler(int server_socket, int first_contact_socket, ClientList* client_device_list, ServerList* backup_server_list){
-	// Create a server comm manager for the connection
-	serverComManager server_comm(client_device_list, backup_server_list);
-
-	// Send a handshake to client
-	Packet handshake_packet(first_contact_socket);
-	handshake_packet.send_packet(first_contact_socket);
-
-	Packet ack_packet = Packet::receive_packet(first_contact_socket);
-	if(ack_packet.get_seqn()){
-		// Client is an user device
-		server_comm.bind_client_sockets(server_socket, first_contact_socket);
-	}else{
-		// Client is a backup server
-		server_comm.add_backup_server(first_contact_socket);
-		return;
-	}
-	
-	// Let other threads be created
-	connect_hand.unlock();
-	
-	// Command loop
-	server_comm.await_command_packet();
-	cout << "liberating memory and ending thread for user: " + server_comm.get_username() << std::endl;
-}
-
-
 int main(int argc, char *argv[])
 {
 	// SERVER SOCKETS
@@ -105,11 +104,15 @@ int main(int argc, char *argv[])
 		cout << "Starting main server... \n";
 
 		// BIND MAIN SOCKET
-		serverStatus isBinded = bind_server_socket(&server_socket);
+		serverStatus isBinded = bind_main_server_socket(&server_socket);
 			if(isBinded != serverStatus::OK){
 			cout << to_string(isBinded);
 			return -1;
 		}
+
+		// START HEARTBEAT THREAD
+		std::thread heartbeat_thread(serverComManager::heartbeat_protocol, &server_list);
+        heartbeat_thread.detach();
 
 		// LISTEN
 		listen(server_socket, 6);
@@ -123,10 +126,9 @@ int main(int argc, char *argv[])
 			//cria uma thread pra primeira conexão do cliente
 			first_contact_socket = accept(server_socket,(struct sockaddr*)&client_address,&client_len);
 			if(first_contact_socket >= 0){
-				std::thread t(connection_handler, server_socket, first_contact_socket, &client_device_list, &server_list);
+				std::thread t(main_server_connection_handler, server_socket, first_contact_socket, &client_device_list, &server_list);
 				t.detach();
 			}
-			
 		}
 	}else if(argc == 3){
 		cout << "Starting backup server...\n";
@@ -141,9 +143,7 @@ int main(int argc, char *argv[])
 		serverFileManager::receive_sync_dir_files(server_socket);
 
 		// Infinite loop awaiting syncronizations from main server
-		while(!elected){
-			serverComManager::await_sync(server_socket);
-		}
+		serverComManager::await_sync(server_socket, &elected);
 	}
 
 

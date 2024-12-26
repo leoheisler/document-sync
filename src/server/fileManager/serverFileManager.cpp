@@ -101,6 +101,11 @@ void serverFileManager::receive_sync_dir_files(int socket)
         // Receive a packet
         Packet received_packet = Packet::receive_packet(client_socket);
 
+        if (received_packet.get_type() != Packet::DATA_PACKET) {
+            cout << "server directories are empty" << endl;
+            break;
+        }
+
         // Extract the payload
         std::string payload(received_packet.get_payload(), received_packet.get_length());
 

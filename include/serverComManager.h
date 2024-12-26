@@ -5,6 +5,7 @@
 #include <tuple>
 #include <sstream>
 #include <mutex>
+#include <thread>
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,12 +46,14 @@ class serverComManager
         void list_server();
         void upload(Packet command_packet);
         void delete_server_file(Packet command_packet);
+        static void election_timer(time_t* last_heartbeat);
         
     public:
         // Constructor Method
         serverComManager(ClientList* client_list, ServerList* server_list);
         void await_command_packet();
-        static void await_sync(int socket);
+        static void await_sync(int socket, bool* elected);
+        static void heartbeat_protocol(ServerList* server_list);
         serverStatus bind_client_sockets(int server_socket, int first_comm_socket);
         void add_backup_server(int backup_server_socket);
         std::string get_username();
