@@ -235,7 +235,7 @@ void clientComManager::receive_sync_dir_files()
             payload_stream >> total_paths && 
             payload_stream >> index) {
             // Log received information
-            std::cout << "Received path: " << path << " (Index " << index << " of " << total_paths << ")" << std::endl;
+            // std::cout << "Received path: " << path << " (Index " << index << " of " << total_paths << ")" << std::endl;
 
             size_t last_slash = path.find_last_of("/\\");
             std::string filename = (last_slash != std::string::npos) ? path.substr(last_slash) : path;
@@ -244,12 +244,12 @@ void clientComManager::receive_sync_dir_files()
             this->file_manager->add_path(filename);
 
             // Receive the file using the extracted path
-            cout << "will store at: ../src/client/sync_dir" + filename << endl;
+            // cout << "will store at: ../src/client/sync_dir" + filename << endl;
             FileTransfer::receive_file("../src/client/sync_dir" + filename, client_socket);
 
             // Check if all paths are received
             if (index + 1 == total_paths) {
-                std::cout << "All files received." << std::endl;
+                // std::cout << "All files received." << std::endl;
                 break;
                 return;
             }

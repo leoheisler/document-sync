@@ -42,12 +42,11 @@ void serverComManager::upload(Packet command_packet)
 
 	// propagate file to all backup servers (sync)
 	ServerNode* backup_server = server_list->get_first_server();
-	local_file_path += "\n";
 	
 	while(backup_server != nullptr){
 		int server_socket = backup_server->get_socket();
-		Packet file_path_packet(Packet::DATA_PACKET, 1, 1, local_file_path.c_str(), local_file_path.size());
-		file_path_packet.send_packet(server_socket);
+		Packet* file_path_packet = new Packet(Packet::DATA_PACKET, 1, 1, (local_file_path + "\n").c_str(), (local_file_path + "\n").size());
+		file_path_packet->send_packet(server_socket);
 		FileTransfer::send_file(local_file_path, server_socket);
 		backup_server = backup_server->get_next();
 	}
@@ -351,7 +350,7 @@ void serverComManager::add_backup_server(int backup_server_socket)
 {
 	access_server_list.lock();
 	this->server_list->add_server(backup_server_socket);
-	this->server_list->display_servers();
+	//this->server_list->display_servers();
 	backup_sync_dir(backup_server_socket);
 	access_server_list.unlock();
 }

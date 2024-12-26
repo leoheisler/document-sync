@@ -113,14 +113,14 @@ void serverFileManager::receive_sync_dir_files(int socket)
             payload_stream >> total_paths && 
             payload_stream >> index) {
             // Log received information
-            std::cout << "Received path: " << path << " (Index " << index << " of " << total_paths << ")" << std::endl;
+            // std::cout << "Received path: " << path << " (Index " << index << " of " << total_paths << ")" << std::endl;
 
             // Receive the file using the extracted path
             FileTransfer::receive_file(path, client_socket);
 
             // Check if all paths are received
             if (index + 1 == total_paths) {
-                std::cout << "All files received." << std::endl;
+                //std::cout << "All files received." << std::endl;
                 break;
             }
         } else {
