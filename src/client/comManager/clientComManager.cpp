@@ -312,9 +312,11 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
 {
     int  port;
     struct hostent *server;
+    char self_hostname[256];
+    gethostname(self_hostname, sizeof(self_hostname));
     
 	set_username(argv[1]);
-    set_hostname(argv[2]);
+    set_hostname(self_hostname);
 	server = gethostbyname(argv[2]);
     port = atoi(argv[3]);
 

@@ -42,6 +42,8 @@ class serverComManager
         void end_communications(bool* exit);
         void get_sync_dir();
         void backup_sync_dir(int socket);
+        void backup_server_list(int socket);
+        void backup_client_list(int socket);
         void download(Packet command_packet);
         void list_server();
         void upload(Packet command_packet);

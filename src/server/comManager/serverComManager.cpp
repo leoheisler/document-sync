@@ -14,17 +14,17 @@ serverComManager::serverComManager(ClientList* client_list, ServerList* server_l
 // PRIVATE METHODS
 void serverComManager::upload(Packet command_packet)
 {
-	// construct file path for client sync dir from packet payload and username
+	// Construct file path for client sync dir from packet payload and username
 	string file_path = strtok(command_packet.get_payload(), "\n");
 	fs::path path(file_path);
 	string file_name = "/" + path.filename().string(); // Extracts only the file name
 	string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
 	string local_file_path = sync_dir_path + file_name;
 
-	// receive file from client upload socket
+	// Receive file from client upload socket
 	FileTransfer::receive_file(local_file_path, this->client_upload_socket);
 
-	// propagate file to both client devices (sync)
+	// Propagate file to both client devices (sync)
 	ClientNode* client_devices = client_list->get_client(this->username);
 	int device1_socket = client_devices->get_device1_download_socket();
 	int device2_socket = client_devices->get_device2_download_socket();
@@ -42,16 +42,20 @@ void serverComManager::upload(Packet command_packet)
 		FileTransfer::send_file(local_file_path, device2_socket);
 	}
 
-	// propagate file to all backup servers (sync)
-	ServerNode* backup_server = server_list->get_first_server();
-	
-	while(backup_server != nullptr){
-		int server_socket = backup_server->get_socket();
-		Packet* file_path_packet = new Packet(Packet::DATA_PACKET, 1, 1, (local_file_path + "\n").c_str(), (local_file_path + "\n").size());
-		file_path_packet->send_packet(server_socket);
-		FileTransfer::send_file(local_file_path, server_socket);
-		backup_server = backup_server->get_next();
+	access_server_list.lock();
+	{
+		// propagate file to all backup servers (sync)
+		ServerNode* backup_server = server_list->get_first_server();
+		
+		while(backup_server != nullptr){
+			int server_socket = backup_server->get_socket();
+			Packet file_path_packet(Packet::DATA_PACKET, 1, 1, (local_file_path + "\n").c_str(), (local_file_path + "\n").size());
+			file_path_packet.send_packet(server_socket);
+			FileTransfer::send_file(local_file_path, server_socket);
+			backup_server = backup_server->get_next();
+		}
 	}
+	access_server_list.unlock();
 }
 
 void serverComManager::download(Packet command_packet)
@@ -68,15 +72,15 @@ void serverComManager::download(Packet command_packet)
 
 void serverComManager::delete_server_file(Packet command_packet)
 {
-	// construct file path from packet payload and username
+	// Construct file path from packet payload and username
 	string file_name = strtok(command_packet.get_payload(), "\n");
 	string sync_dir_path = "../src/server/userDirectories/sync_dir_" + this->username;
 	string file_path = sync_dir_path + file_name;
 	
-	// delete the file in file_path path.
+	// Delete the file in file_path path.
 	string found_file = serverFileManager::delete_file(file_path);
 
-	// dont propagate if file has already been deleted from server
+	// Dont propagate if file has already been deleted from server
 	if(found_file == "File not found or unable to delete.\n"){
 		return;
 	}
@@ -97,16 +101,20 @@ void serverComManager::delete_server_file(Packet command_packet)
 		file_name_packet_2.send_packet(device2_socket);
 	}
 
-	// Propagate delete to all backup servers (sync)
-	ServerNode* backup_server = server_list->get_first_server();
-	file_path += "\n";
+	access_server_list.lock();
+	{
+		// Propagate delete to all backup servers (sync)
+		ServerNode* backup_server = server_list->get_first_server();
+		file_path += "\n";
 
-	while(backup_server != nullptr){
-		int server_socket = backup_server->get_socket();
-		Packet file_name_packet(Packet::CMD_PACKET, Command::DELETE, 1, file_path.c_str(), file_path.size());
-		file_name_packet.send_packet(server_socket);
-		backup_server = backup_server->get_next();
+		while(backup_server != nullptr){
+			int server_socket = backup_server->get_socket();
+			Packet file_name_packet(Packet::CMD_PACKET, Command::DELETE, 1, file_path.c_str(), file_path.size());
+			file_name_packet.send_packet(server_socket);
+			backup_server = backup_server->get_next();
+		}
 	}
+	access_server_list.unlock();
 }
 
 void serverComManager::list_server() 
@@ -229,6 +237,54 @@ void serverComManager::backup_sync_dir(int socket)
 	}
 }
 
+void serverComManager::backup_server_list(int socket)
+{
+	// Propagate current backup server list to connecting backup server (sync)
+    ServerNode* backup_server = this->server_list->get_first_server();
+    std::string all_server_infos = "";
+    int size = 0;
+
+	while(backup_server != nullptr){
+		all_server_infos += backup_server->get_hostname() + "\n";
+		backup_server = backup_server->get_next();
+		size++;
+	}
+
+	// Send packet with all backup server hostnames
+	Packet server_total(Packet::SERVERINFO_PACKET, 1, size, all_server_infos.c_str(), all_server_infos.size());
+	server_total.send_packet(socket);
+}
+
+void serverComManager::backup_client_list(int socket)
+{
+    // Propagate current client list to the connecting backup server (sync)
+    ClientNode* client = this->client_list->get_first_client();
+
+    if (client == nullptr) {
+		Packet empty_client(Packet::EOT_PACKET, 1, 1, "", 0);
+		empty_client.send_packet(socket);
+        return;
+    }
+
+    while (client != nullptr) {
+        // Retrieve client information
+        std::string device1_hostname = client->get_device1_hostname();
+        std::string device2_hostname = client->get_device2_hostname();
+
+        // Prepare packet content
+        std::string client_info = client->get_username() + "\n";
+        client_info += device1_hostname + "\n";
+        client_info += device2_hostname + "\n";
+
+        // Create and send the packet
+        Packet client_info_packet(Packet::CLIENTINFO_PACKET, 1, 1, client_info.c_str(), client_info.size());
+        client = client->get_next();
+    }
+	Packet end_transmission(Packet::EOT_PACKET, 1, 1, "", 0);
+	end_transmission.send_packet(socket);
+}
+
+
 void serverComManager::start_communications()
 {	
 	Packet starter_packet = Packet::receive_packet(this->client_cmd_socket);
@@ -255,13 +311,30 @@ void serverComManager::start_communications()
 		access_device_list.unlock();
 
 		if(full_list){
-			// if list of devices is fully occupied send error packet to signal client to exit
+			// If list of devices is fully occupied send error packet to signal client to exit
 			Packet error_packet(Packet::ERR, Command::EXIT, 1, "", 0);
 			error_packet.send_packet(this->client_cmd_socket);
 		}else{
-			// if list of devices has free space, allow client to connect and receive sync dir
+			// If list of devices has free space, allow client to connect
 			this->file_manager.create_server_sync_dir(username);
 			this->client_list->display_clients();
+
+			access_server_list.lock();
+			{
+				// Propagate client info to all backup servers (sync)
+				ServerNode* backup_server = server_list->get_first_server();
+				string client_info = this->username + "\n" + this->hostname + "\n";
+
+				while(backup_server != nullptr){
+					int server_socket = backup_server->get_socket();
+					Packet client_info_packet(Packet::CLIENTINFO_PACKET, 1, 1, client_info.c_str(), client_info.size());
+					client_info_packet.send_packet(server_socket);
+					backup_server = backup_server->get_next();
+				}
+			}
+			access_server_list.unlock();
+
+			// Send all client sync dir files
 			get_sync_dir();	
 		}
 	}
@@ -371,15 +444,26 @@ void serverComManager::await_sync(int socket, bool* elected)
 				break;
 			}
 
-			// NODE_PACKET == CLIENT/SERVER LIST SYNC
-			case Packet::NODE_PACKET:
+			// CLIENTINFO_PACKET == CLIENT LIST SYNC
+			case Packet::CLIENTINFO_PACKET:
 			{
-				// seqn == 1 <=> Client node
-
-				// seqn == 0 <=> Backup Server node
+				string client_username = strtok(received_packet.get_payload(), "\n");
+				string client_hostname = strtok(nullptr, "\n");
+				this->client_list->add_device(client_username, client_hostname, tuple<int,int,int>(0,0,0));
+				this->client_list->display_clients();
 				break;
 			}
 
+			// SERVERINFO_PACKET == BACKUP SERVER LIST SYNC
+			case Packet::SERVERINFO_PACKET:
+			{
+				string server_hostname = strtok(received_packet.get_payload(), "\n");
+				this->server_list->add_server(0, server_hostname);
+				this->server_list->display_servers();
+				break;
+			}
+
+			// HEARTBEAT_PACKET == MAIN SERVER HEARTBEAT
 			case Packet::HEARTBEAT_PACKET:
 			{
 				cout << "received heartbeat..." << endl;
@@ -434,11 +518,28 @@ void serverComManager::add_backup_server(int backup_server_socket, string hostna
 {
 	access_server_list.lock();
 	{
+		// Propagate backup server info to all OTHER backup servers (sync)
+		ServerNode* backup_server = server_list->get_first_server();
+		string server_info = hostname + "\n";
+
+		while(backup_server != nullptr){
+			int server_socket = backup_server->get_socket();
+			Packet* server_info_packet = new Packet(Packet::SERVERINFO_PACKET, 1, 1, server_info.c_str(), server_info.size());
+			server_info_packet->send_packet(server_socket);
+			backup_server = backup_server->get_next();
+		}
+
+		// Backup current server list to connecting backup server
+		backup_server_list(backup_server_socket);
+
+		// Add connecting backup server to server list
 		this->server_list->add_server(backup_server_socket, hostname);
 		this->server_list->display_servers();
-		backup_sync_dir(backup_server_socket);
 	}
 	access_server_list.unlock();
+
+	backup_client_list(backup_server_socket);
+	backup_sync_dir(backup_server_socket);
 }
 
 std::string serverComManager::get_username()

@@ -133,19 +133,21 @@ int main(int argc, char *argv[])
 		}
 	}else if(argc == 3){
 		cout << "Starting backup server...\n";
-
+		serverComManager com_manager(&client_device_list, &server_list);
 		int  port;
     	struct hostent *server;
+		char self_hostname[256];
 		bool elected = false;
     
 		server = gethostbyname(argv[1]);
 		port = atoi(argv[2]);
-		setup_backup_server_socket(port, argv[1], server, &server_socket);
+		gethostname(self_hostname, sizeof(self_hostname));
+		setup_backup_server_socket(port, self_hostname, server, &server_socket);
+
 		
 		serverFileManager::receive_sync_dir_files(server_socket);
 
 		// Infinite loop awaiting syncronizations from main server
-		serverComManager com_manager(&client_device_list, &server_list);
 		com_manager.await_sync(server_socket, &elected);
 	}
 

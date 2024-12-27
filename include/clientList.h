@@ -99,12 +99,12 @@ class ClientList {
             while (current != nullptr) {
                 if (current->get_username() == uname) {
                     // Check if there is a free slot for the new device
-                    if (current->get_device1_sockets() == empty_device) {
+                    if (current->get_device1_sockets() == empty_device && current->get_device1_hostname() == "") {
                         current->set_device1_sockets(std::get<0>(device_sockets),
                                                     std::get<1>(device_sockets),
                                                     std::get<2>(device_sockets));
                         current->set_device1_hostname(hostname); // Set device 1 hostname
-                    } else if (current->get_device2_sockets() == empty_device) {
+                    } else if (current->get_device2_sockets() == empty_device && current->get_device2_hostname() == "") {
                         current->set_device2_sockets(std::get<0>(device_sockets),
                                                     std::get<1>(device_sockets),
                                                     std::get<2>(device_sockets));
