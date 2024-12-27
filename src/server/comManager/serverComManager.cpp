@@ -251,39 +251,43 @@ void serverComManager::backup_server_list(int socket)
 	}
 
 	// Send packet with all backup server hostnames
-	Packet server_total(Packet::SERVERINFO_PACKET, 1, size, all_server_infos.c_str(), all_server_infos.size());
+	Packet server_total(Packet::SERVERINFO_PACKET, size, 1, all_server_infos.c_str(), all_server_infos.size());
 	server_total.send_packet(socket);
 }
 
 void serverComManager::backup_client_list(int socket)
 {
-    // Propagate current client list to the connecting backup server (sync)
-    ClientNode* client = this->client_list->get_first_client();
+	access_device_list.lock();
+	{
+		// Propagate current client list to the connecting backup server (sync)
+		ClientNode* client = this->client_list->get_first_client();
 
-    if (client == nullptr) {
-		Packet empty_client(Packet::EOT_PACKET, 1, 1, "", 0);
-		empty_client.send_packet(socket);
-        return;
-    }
+		if (client == nullptr) {
+			Packet empty_client(Packet::EOT_PACKET, 1, 1, "", 0);
+			empty_client.send_packet(socket);
+			return;
+		}
 
-    while (client != nullptr) {
-        // Retrieve client information
-        std::string device1_hostname = client->get_device1_hostname();
-        std::string device2_hostname = client->get_device2_hostname();
+		while (client != nullptr) {
+			// Retrieve client information
+			std::string device1_hostname = client->get_device1_hostname();
+			std::string device2_hostname = client->get_device2_hostname();
 
-        // Prepare packet content
-        std::string client_info = client->get_username() + "\n";
-        client_info += device1_hostname + "\n";
-        client_info += device2_hostname + "\n";
+			// Prepare packet content
+			std::string client_info = client->get_username() + "\n";
+			client_info += device1_hostname + "\n";
+			client_info += device2_hostname + "\n";
 
-        // Create and send the packet
-        Packet client_info_packet(Packet::CLIENTINFO_PACKET, 1, 1, client_info.c_str(), client_info.size());
-        client = client->get_next();
-    }
+			// Create and send the packet
+			Packet client_info_packet(Packet::CLIENTINFO_PACKET, 1, 1, client_info.c_str(), client_info.size());
+			client = client->get_next();
+		}
+	}
+	access_device_list.unlock();
+
 	Packet end_transmission(Packet::EOT_PACKET, 1, 1, "", 0);
 	end_transmission.send_packet(socket);
 }
-
 
 void serverComManager::start_communications()
 {	
@@ -466,7 +470,7 @@ void serverComManager::await_sync(int socket, bool* elected)
 			// HEARTBEAT_PACKET == MAIN SERVER HEARTBEAT
 			case Packet::HEARTBEAT_PACKET:
 			{
-				cout << "received heartbeat..." << endl;
+				//cout << "received heartbeat..." << endl;
 				break;
 			}
 		}
@@ -540,6 +544,62 @@ void serverComManager::add_backup_server(int backup_server_socket, string hostna
 
 	backup_client_list(backup_server_socket);
 	backup_sync_dir(backup_server_socket);
+}
+
+void serverComManager::receive_server_list(int socket)
+{
+	access_server_list.lock();
+		Packet server_list_infos = Packet::receive_packet(socket);
+		string server_hostname;
+		int server_amount = server_list_infos.get_seqn();
+
+		if (server_amount != 0) {
+			char* payload = server_list_infos.get_payload();
+			server_hostname = strtok(payload, "\n");
+			this->server_list->add_server(0, server_hostname);
+
+			for (int i = 1; i < server_amount; i++) {
+				server_hostname = strtok(nullptr, "\n");
+				this->server_list->add_server(0, server_hostname);
+			}
+		}
+		this->server_list->display_servers();
+	access_server_list.unlock();
+}
+
+void serverComManager::receive_client_list(int socket)
+{
+    access_device_list.lock();
+    {
+        // Start receiving client list data
+        bool end_of_transmission = false;
+        while (!end_of_transmission) {
+            // Receive the client info packet
+            Packet client_info_packet = Packet::receive_packet(socket);
+
+            if (client_info_packet.get_type() == Packet::EOT_PACKET) {
+                end_of_transmission = true;
+            } else if (client_info_packet.get_type() == Packet::CLIENTINFO_PACKET) {
+                // Extract client information
+                char* client_info = client_info_packet.get_payload();
+
+                string username;
+                string device1_hostname;
+                string device2_hostname;
+
+                // Read the client information from the stream
+                username = strtok(client_info, "\n");
+                device1_hostname = strtok(nullptr, "\n");
+                device2_hostname = strtok(nullptr, "\n");
+
+                // Add the client to the list
+                this->client_list->add_device(username, device1_hostname, tuple<int,int,int>(0,0,0));
+				this->client_list->add_device(username, device2_hostname, tuple<int,int,int>(0,0,0));
+            }
+        }
+		this->client_list->display_clients();
+    }
+    access_device_list.unlock();
 }
 
 std::string serverComManager::get_username()

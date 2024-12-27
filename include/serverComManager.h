@@ -58,6 +58,8 @@ class serverComManager
         static void heartbeat_protocol(ServerList* server_list);
         serverStatus bind_client_sockets(int server_socket, int first_comm_socket);
         void add_backup_server(int backup_server_socket, string hostname);
+        void receive_server_list(int socket);
+        void receive_client_list(int socket);
         std::string get_username();
 };
 #endif

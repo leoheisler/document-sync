@@ -144,7 +144,8 @@ int main(int argc, char *argv[])
 		gethostname(self_hostname, sizeof(self_hostname));
 		setup_backup_server_socket(port, self_hostname, server, &server_socket);
 
-		
+		com_manager.receive_server_list(server_socket);
+		com_manager.receive_client_list(server_socket);
 		serverFileManager::receive_sync_dir_files(server_socket);
 
 		// Infinite loop awaiting syncronizations from main server

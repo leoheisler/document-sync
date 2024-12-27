@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory inside the container
-WORKDIR /app
+WORKDIR /app/project/build
 
 # Copy the entire project into the container
 COPY . /app/project
