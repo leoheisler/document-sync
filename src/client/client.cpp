@@ -100,7 +100,10 @@ class client
             while(true){
                 first_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);
                 if(first_contact_socket >= 0){
+                    //close old communications
                     communication_manager.close_sockets();
+                    //start new sockets
+                    communication_manager.start_sockets();
                     try{
                         second_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);
                         third_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);

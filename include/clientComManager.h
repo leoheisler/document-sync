@@ -35,7 +35,6 @@ class clientComManager
         clientFileManager* file_manager = nullptr;
 
         //Sockets
-        void start_sockets();
         void connect_sockets(int port, hostent* server);
         
 
@@ -74,11 +73,12 @@ class clientComManager
 
         void send_delete_request(std::string file_name);
 
-        // Sett client file handler
+        // Setclient file handler
         void set_file_manager(clientFileManager* fm); 
         void set_sock_cmd(int sock_cmd);
         void set_sock_upload(int sock_upload);
         void set_sock_fetch(int sock_fetch);
+        void start_sockets();
         void close_sockets();
 
 };

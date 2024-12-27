@@ -2,7 +2,7 @@
 
 using namespace std;
 namespace fs = std::filesystem;
-
+#define CLIENT_PORT 1909
 #define PORT 4000
 std::mutex access_device_list;
 std::mutex access_server_list;
@@ -285,6 +285,74 @@ void serverComManager::election_timer(time_t* last_heartbeat)
 		access_heartbeat_time.unlock();
 	}
 }
+/*
+	START SERVER SOCKETS
+	!NOTICE! 
+	you only need to start the sockets in backup servers that >initiate<
+	connections, while waiting for connection the listening socket gives an 
+	integer that can be used for socket communication. Not needing to iniciate a socket
+	w/socket(AF_NET,SOCK_STREAM,0)
+
+	TLDR
+	>do not use this function on the main server
+ */
+void serverComManager::start_sockets()
+{
+
+    //sock_cmd used for the client to send commands like: download, upload, delete, list_server, list_server, exit, two-way communication
+    if ((this->client_cmd_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
+        cout << "ERROR opening cmd socket\n";
+    
+    //sock_upload used for the client to upload files from inotify events syncs into the server
+    if ((this->client_upload_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
+        cout << "ERROR opening upload socket\n";
+
+    //sock_fetch used for the client to download files from the server if synchronization needed
+    if ((this->client_fetch_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
+        cout << "ERROR opening fetch socket\n";
+    
+}
+
+/*
+	CONNECT_SOCKETS
+	THIS FUNCTION HANDLES THE REAL CONNECTION,
+	notice that the sockaddr_in does not need to stay in memory for the 
+	connected sockets to work; its memory can be freed; it just encapsulates
+	the address used in connect
+
+	!the sockets must already be initialized!
+	>the connection needs to happen in this order since its the order the client-end
+	is waiting for the sockets connection
+
+	->for more context see client::accept_connections
+
+*/
+void serverComManager::connect_sockets(int port, hostent* client_host)
+{
+    struct sockaddr_in client_addr;
+
+    client_addr.sin_family = AF_INET;     
+	client_addr.sin_port = htons(port);    
+	client_addr.sin_addr = *((struct in_addr *)client_host->h_addr);
+	bzero(&(client_addr.sin_zero), 8);  
+
+    if (connect(this->client_cmd_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
+        cout << "ERROR connecting cmd socket\n";
+    else
+        cout <<"cmd socket connected\n";
+
+   
+    if (connect(this->client_upload_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
+        cout << "ERROR connecting upload socket\n";
+    else
+        cout <<"upload socket connected\n";
+
+    if (connect(this->client_fetch_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
+        cout << "ERROR connecting fetch socket\n";
+    else
+        cout <<"fetch socket connected\n";
+    
+}
 
 // PUBLIC METHODS
 // This is the interface on server that will delegate each method based on commands.
@@ -444,4 +512,20 @@ void serverComManager::add_backup_server(int backup_server_socket, string hostna
 std::string serverComManager::get_username()
 {
 	return this->username;
+}
+/*
+	GIVEN A STRING HOSTNAME, IT CONNECTS THE SERVER_COM SOCKETS TO
+	THE ADDRESS FOUND, IF IT COULDN'T FIND ANY IT EXITS W/0
+*/
+void serverComManager::connect_to_hostname(char* hostname){
+	struct hostent *client_host; 
+	client_host = gethostbyname(hostname);
+
+	if(client_host == NULL){
+		cout << "NAO CONSEGUI ENCONTRAR O ENDERECO \n";
+		exit(0);
+	}
+	start_sockets();
+	connect_sockets(CLIENT_PORT, client_host);
+
 }

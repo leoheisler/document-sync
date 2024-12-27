@@ -32,87 +32,87 @@ class ServerNode {
 };
 
 class ServerList {
-private:
-    ServerNode* head;  // Head of the linked list
+    private:
+        ServerNode* head;  // Head of the linked list
 
-public:
-    // Constructor
-    ServerList() : head(nullptr) {}
+    public:
+        // Constructor
+        ServerList() : head(nullptr) {}
 
-    // Method to add a server to the list
-    void add_server(int socket, const std::string& hostname) {
-        ServerNode* new_server = new ServerNode(socket, hostname);
-        if (head == nullptr) {
-            head = new_server;  // Add as the first node
-        } else {
-            ServerNode* temp = head;
-            while (temp->get_next() != nullptr) {
-                temp = temp->get_next();  // Traverse to the end of the list
-            }
-            temp->set_next(new_server);  // Link the new server at the end
-        }
-    }
-
-    // Method to remove a server by its socket number
-    void remove_server(int socket) {
-        ServerNode* current = head;
-        ServerNode* prev = nullptr;
-
-        while (current != nullptr) {
-            if (current->get_socket() == socket) {
-                // Found the server to remove
-                if (prev == nullptr) {  // Removing the first node
-                    head = current->get_next();
-                } else {  // Removing an intermediate or last node
-                    prev->set_next(current->get_next());
+        // Method to add a server to the list
+        void add_server(int socket, const std::string& hostname) {
+            ServerNode* new_server = new ServerNode(socket, hostname);
+            if (head == nullptr) {
+                head = new_server;  // Add as the first node
+            } else {
+                ServerNode* temp = head;
+                while (temp->get_next() != nullptr) {
+                    temp = temp->get_next();  // Traverse to the end of the list
                 }
-                delete current;  // Free the memory
-                return;
+                temp->set_next(new_server);  // Link the new server at the end
             }
-            prev = current;
-            current = current->get_next();
         }
 
-        std::cout << "SERVER NOT FOUND" << std::endl;
-    }
+        // Method to remove a server by its socket number
+        void remove_server(int socket) {
+            ServerNode* current = head;
+            ServerNode* prev = nullptr;
 
-    // Method to return the first server of the list
-    ServerNode* get_first_server() const {
-        return head;
-    }
-
-    // Method to find a server by its socket number
-    ServerNode* find_server(int socket) const {
-        ServerNode* current = head;
-        while (current != nullptr) {
-            if (current->get_socket() == socket) {
-                return current;  // Return the matching server node
+            while (current != nullptr) {
+                if (current->get_socket() == socket) {
+                    // Found the server to remove
+                    if (prev == nullptr) {  // Removing the first node
+                        head = current->get_next();
+                    } else {  // Removing an intermediate or last node
+                        prev->set_next(current->get_next());
+                    }
+                    delete current;  // Free the memory
+                    return;
+                }
+                prev = current;
+                current = current->get_next();
             }
-            current = current->get_next();
-        }
-        std::cout << "SERVER NOT FOUND" << std::endl;
-        return nullptr;
-    }
 
-    // Display all servers in the list (for debugging)
-    void display_servers() const {
-        ServerNode* current = head;
-        cout << endl;
-        while (current != nullptr) {
-            current->display();
-            current = current->get_next();
+            std::cout << "SERVER NOT FOUND" << std::endl;
         }
-    }
 
-    // Destructor to free all nodes
-    ~ServerList() {
-        ServerNode* current = head;
-        while (current != nullptr) {
-            ServerNode* next = current->get_next();
-            delete current;
-            current = next;
+        // Method to return the first server of the list
+        ServerNode* get_first_server() const {
+            return head;
         }
-    }
+
+        // Method to find a server by its socket number
+        ServerNode* find_server(int socket) const {
+            ServerNode* current = head;
+            while (current != nullptr) {
+                if (current->get_socket() == socket) {
+                    return current;  // Return the matching server node
+                }
+                current = current->get_next();
+            }
+            std::cout << "SERVER NOT FOUND" << std::endl;
+            return nullptr;
+        }
+
+        // Display all servers in the list (for debugging)
+        void display_servers() const {
+            ServerNode* current = head;
+            cout << endl;
+            while (current != nullptr) {
+                current->display();
+                current = current->get_next();
+            }
+        }
+
+        // Destructor to free all nodes
+        ~ServerList() {
+            ServerNode* current = head;
+            while (current != nullptr) {
+                ServerNode* next = current->get_next();
+                delete current;
+                current = next;
+            }
+        }
 };
 
 #endif // SERVERLIST_H

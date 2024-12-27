@@ -47,6 +47,10 @@ class serverComManager
         void upload(Packet command_packet);
         void delete_server_file(Packet command_packet);
         static void election_timer(time_t* last_heartbeat);
+
+        /*functions used in backup_servers*/
+        void connect_sockets(int port, hostent* client_address);
+        void start_sockets();
         
     public:
         // Constructor Method
@@ -57,5 +61,8 @@ class serverComManager
         serverStatus bind_client_sockets(int server_socket, int first_comm_socket);
         void add_backup_server(int backup_server_socket, string hostname);
         std::string get_username();
+
+        /*functions used in backup_servers*/
+        void connect_to_hostname(char *hostname);
 };
 #endif
