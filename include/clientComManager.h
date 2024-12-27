@@ -37,7 +37,7 @@ class clientComManager
         //Sockets
         void start_sockets();
         void connect_sockets(int port, hostent* server);
-        void close_sockets();
+        
 
         //sync_dir funcs
         void get_sync_dir();
@@ -76,6 +76,10 @@ class clientComManager
 
         // Sett client file handler
         void set_file_manager(clientFileManager* fm); 
+        void set_sock_cmd(int sock_cmd);
+        void set_sock_upload(int sock_upload);
+        void set_sock_fetch(int sock_fetch);
+        void close_sockets();
 
 };
 #endif

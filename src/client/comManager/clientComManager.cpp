@@ -364,6 +364,9 @@ std::string clientComManager::get_username(){ return this->username; }
 void clientComManager::set_username(std::string username){ this->username = username; }
 std::string clientComManager::get_hostname(){ return this->hostname; }
 void clientComManager::set_hostname(std::string hostname){ this->hostname = hostname; }
+void clientComManager::set_sock_cmd(int sock_cmd){this->sock_cmd = sock_cmd;}
+void clientComManager::set_sock_upload(int sock_upload){this->sock_upload = sock_upload;}
+void clientComManager::set_sock_fetch(int sock_fetch){this->sock_fetch = sock_fetch;}
 
 // asks for the file that will be deleted and sends request with file and username
 void clientComManager::send_delete_request(std::string file_name)
