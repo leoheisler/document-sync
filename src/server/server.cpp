@@ -10,11 +10,9 @@
 #include <thread>
 #include <mutex>
 
-
-#define PORT 4000
 std::mutex connect_hand;
 
-serverStatus bind_main_server_socket(int* server_socket){
+serverStatus bind_main_server_socket(int* server_socket, int port){
 	struct sockaddr_in serv_addr;
 
 	if ((*server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -23,7 +21,7 @@ serverStatus bind_main_server_socket(int* server_socket){
 	}
         
 	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_port = htons(PORT);
+	serv_addr.sin_port = htons(port);
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
 	bzero(&(serv_addr.sin_zero), 8);     
 	if (bind(*server_socket, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0){
@@ -101,12 +99,16 @@ int main(int argc, char *argv[])
     ClientList client_device_list;
 	ServerList server_list;
 
-	if(argc == 1){
+	if(argc == 1 || argc == 2){
 		cout << "Starting main server... \n";
+		int port = 4000;  // Default port
+		if (argc == 2) {
+			port = std::stoi(argv[1]);  // Convert the argument to an integer (port)
+		}
 
 		// BIND MAIN SOCKET
-		serverStatus isBinded = bind_main_server_socket(&server_socket);
-			if(isBinded != serverStatus::OK){
+		serverStatus isBinded = bind_main_server_socket(&server_socket, port);
+		if(isBinded != serverStatus::OK){
 			cout << to_string(isBinded);
 			return -1;
 		}
@@ -117,7 +119,11 @@ int main(int argc, char *argv[])
 
 		// LISTEN
 		listen(server_socket, 6);
-		cout << "================================\n SERVER LISTENING ON PORT 4000\n================================\n";
+		if(argc == 1){
+			cout << "================================\n SERVER LISTENING ON PORT 4000\n================================\n";
+		}else
+			cout << "================================\n SERVER LISTENING ON PORT " + string(argv[1]) + "\n================================\n";
+
 
 		// loop de criação de threads
 		while(true){

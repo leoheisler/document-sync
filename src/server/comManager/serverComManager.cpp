@@ -273,6 +273,14 @@ void serverComManager::backup_client_list(int socket)
 			std::string device1_hostname = client->get_device1_hostname();
 			std::string device2_hostname = client->get_device2_hostname();
 
+			// Add marker if device hostname is empty
+			if (device1_hostname.empty()) {
+				device1_hostname = "EMPTY_DEVICE_1";
+			}
+			if (device2_hostname.empty()) {
+				device2_hostname = "EMPTY_DEVICE_2";
+			}
+
 			// Prepare packet content
 			std::string client_info = client->get_username() + "\n";
 			client_info += device1_hostname + "\n";
@@ -280,6 +288,7 @@ void serverComManager::backup_client_list(int socket)
 
 			// Create and send the packet
 			Packet client_info_packet(Packet::CLIENTINFO_PACKET, 1, 1, client_info.c_str(), client_info.size());
+			client_info_packet.send_packet(socket);
 			client = client->get_next();
 		}
 	}
@@ -587,14 +596,18 @@ void serverComManager::receive_client_list(int socket)
                 string device1_hostname;
                 string device2_hostname;
 
+				cout << string(client_info) << endl;
+
                 // Read the client information from the stream
                 username = strtok(client_info, "\n");
                 device1_hostname = strtok(nullptr, "\n");
                 device2_hostname = strtok(nullptr, "\n");
-
+				
                 // Add the client to the list
-                this->client_list->add_device(username, device1_hostname, tuple<int,int,int>(0,0,0));
-				this->client_list->add_device(username, device2_hostname, tuple<int,int,int>(0,0,0));
+				if(device1_hostname != "EMPTY_DEVICE_1")
+                	this->client_list->add_device(username, device1_hostname, tuple<int,int,int>(0,0,0));
+				if(device2_hostname != "EMPTY_DEVICE_2")
+					this->client_list->add_device(username, device2_hostname, tuple<int,int,int>(0,0,0));
             }
         }
 		this->client_list->display_clients();

@@ -119,7 +119,7 @@ class ClientList {
             }
 
             // If we reach here, the client was not found, so add a new client
-            ClientNode* new_client = new ClientNode(uname, hostname, device_sockets);
+            ClientNode* new_client = new ClientNode(uname, hostname, device_sockets, "", tuple<int,int,int>(0,0,0));
 
             // Insert the new client node at the end of the list
             if (head == nullptr) {

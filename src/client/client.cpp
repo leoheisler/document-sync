@@ -129,8 +129,8 @@ class client
             thread command_thread(&client::command_input_interface,this);
             thread upload_thread(&client::upload_to_server,this);
             thread download_thread(&client::download_from_server,this);
-            //thread accept_thread(&client::accept_connections,this);
-            //accept_thread.detach();
+            thread accept_thread(&client::accept_connections,this);
+            accept_thread.detach();
 
             // wait for all threads to finish so main can finish
             command_thread.join();
