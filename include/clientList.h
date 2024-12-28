@@ -99,12 +99,12 @@ class ClientList {
             while (current != nullptr) {
                 if (current->get_username() == uname) {
                     // Check if there is a free slot for the new device
-                    if (current->get_device1_sockets() == empty_device) {
+                    if (current->get_device1_sockets() == empty_device && (current->get_device1_hostname() == "" || current->get_device1_hostname() == hostname)) {
                         current->set_device1_sockets(std::get<0>(device_sockets),
                                                     std::get<1>(device_sockets),
                                                     std::get<2>(device_sockets));
                         current->set_device1_hostname(hostname); // Set device 1 hostname
-                    } else if (current->get_device2_sockets() == empty_device) {
+                    } else if (current->get_device2_sockets() == empty_device && (current->get_device2_hostname() == "" || current->get_device2_hostname() == hostname)) {
                         current->set_device2_sockets(std::get<0>(device_sockets),
                                                     std::get<1>(device_sockets),
                                                     std::get<2>(device_sockets));
@@ -119,7 +119,7 @@ class ClientList {
             }
 
             // If we reach here, the client was not found, so add a new client
-            ClientNode* new_client = new ClientNode(uname, hostname, device_sockets);
+            ClientNode* new_client = new ClientNode(uname, hostname, device_sockets, "", tuple<int,int,int>(0,0,0));
 
             // Insert the new client node at the end of the list
             if (head == nullptr) {
@@ -162,6 +162,44 @@ class ClientList {
                     // Remove the client if both devices are disconnected
                     if (current->get_device1_sockets() == empty_device &&
                         current->get_device2_sockets() == empty_device) {
+                        if (prev == nullptr) {  // Removing the first node
+                            head = current->get_next();
+                        } else {  // Removing an intermediate or last node
+                            prev->set_next(current->get_next());
+                        }
+                        delete current;  // Free the memory
+                    }
+                    return;
+                }
+                prev = current;
+                current = current->get_next();
+            }
+
+            std::cout << "CLIENT NOT FOUND" << std::endl;
+        }
+
+        // Method to remove a device by username and hostname
+        void remove_device(const std::string& uname, string hostname) {
+            ClientNode* current = head;
+            ClientNode* prev = nullptr;
+
+            while (current != nullptr) {
+                if (current->get_username() == uname) {
+                    // Check and remove the corresponding device sockets
+                    if (current->get_device1_hostname() == hostname) {
+                        current->set_device1_sockets(0, 0, 0); // Clear device 1 sockets
+                        current->set_device1_hostname("");    // Clear device 1 hostname
+                    } else if (current->get_device2_hostname() == hostname) {
+                        current->set_device2_sockets(0, 0, 0); // Clear device 2 sockets
+                        current->set_device2_hostname("");    // Clear device 2 hostname
+                    } else {
+                        std::cout << "DEVICE NOT FOUND FOR USER" << std::endl;
+                        return;
+                    }
+
+                    // Remove the client if both devices are disconnected
+                    if ((current->get_device1_sockets() == empty_device && current->get_device1_hostname() == "") &&
+                        (current->get_device2_sockets() == empty_device && current->get_device2_hostname() == "")) {
                         if (prev == nullptr) {  // Removing the first node
                             head = current->get_next();
                         } else {  // Removing an intermediate or last node

@@ -42,6 +42,8 @@ class serverComManager
         void end_communications(bool* exit);
         void get_sync_dir();
         void backup_sync_dir(int socket);
+        void backup_server_list(int socket);
+        void backup_client_list(int socket);
         void download(Packet command_packet);
         void list_server();
         void upload(Packet command_packet);
@@ -60,6 +62,8 @@ class serverComManager
         static void heartbeat_protocol(ServerList* server_list);
         serverStatus bind_client_sockets(int server_socket, int first_comm_socket);
         void add_backup_server(int backup_server_socket, string hostname);
+        void receive_server_list(int socket);
+        void receive_client_list(int socket);
         std::string get_username();
 
         /*functions used in backup_servers*/
