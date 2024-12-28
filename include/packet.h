@@ -30,10 +30,11 @@ class Packet {
             CMD_PACKET = 0x0002,
             COMM_PACKET = 0x0003,
             CLIENTINFO_PACKET = 0x0004,
-            SERVERINFO_PACKET = 0x0005,
-            HEARTBEAT_PACKET = 0x0006,
-            ELECTION_PACKET = 0x0007,
-            EOT_PACKET = 0x0008,
+            DELETEDEVICE_PACKET = 0x0005,
+            SERVERINFO_PACKET = 0x0006,
+            HEARTBEAT_PACKET = 0x0007,
+            ELECTION_PACKET = 0x0008,
+            EOT_PACKET = 0x0009,
         };
 
         // Constant for total packet size in bytes

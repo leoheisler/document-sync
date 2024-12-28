@@ -54,8 +54,6 @@ void main_server_connection_handler(int server_socket, int first_contact_socket,
 		while(true);
 	}
 	
-
-	
 	cout << "liberating memory and ending thread for user: " + server_comm.get_username() << std::endl;
 }
 
@@ -103,7 +101,7 @@ int main(int argc, char *argv[])
 		cout << "Starting main server... \n";
 		int port = 4000;  // Default port
 		if (argc == 2) {
-			port = std::stoi(argv[1]);  // Convert the argument to an integer (port)
+			port = stoi(argv[1]);  // Convert the argument to an integer (port)
 		}
 
 		// BIND MAIN SOCKET

@@ -177,6 +177,21 @@ void serverComManager::end_communications(bool *exit)
     );
 	access_device_list.unlock();
 
+	access_server_list.lock();
+	{
+		// Propagate client device delete to all backup servers (sync)
+		ServerNode* backup_server = server_list->get_first_server();
+		string client_info = this->username + "\n" + this->hostname + "\n";
+
+		while(backup_server != nullptr){
+			int server_socket = backup_server->get_socket();
+			Packet client_info_packet(Packet::DELETEDEVICE_PACKET, 1, 1, client_info.c_str(), client_info.size());
+			client_info_packet.send_packet(server_socket);
+			backup_server = backup_server->get_next();
+		}
+	}
+	access_server_list.unlock();
+
 	// close sockets
 	close(this->client_cmd_socket);
 	close(this->client_fetch_socket);
@@ -261,12 +276,6 @@ void serverComManager::backup_client_list(int socket)
 	{
 		// Propagate current client list to the connecting backup server (sync)
 		ClientNode* client = this->client_list->get_first_client();
-
-		if (client == nullptr) {
-			Packet empty_client(Packet::EOT_PACKET, 1, 1, "", 0);
-			empty_client.send_packet(socket);
-			return;
-		}
 
 		while (client != nullptr) {
 			// Retrieve client information
@@ -463,6 +472,15 @@ void serverComManager::await_sync(int socket, bool* elected)
 				string client_username = strtok(received_packet.get_payload(), "\n");
 				string client_hostname = strtok(nullptr, "\n");
 				this->client_list->add_device(client_username, client_hostname, tuple<int,int,int>(0,0,0));
+				this->client_list->display_clients();
+				break;
+			}
+
+			case Packet::DELETEDEVICE_PACKET:
+			{
+				string client_username = strtok(received_packet.get_payload(), "\n");
+				string client_hostname = strtok(nullptr, "\n");
+				this->client_list->remove_device(client_username, client_hostname);
 				this->client_list->display_clients();
 				break;
 			}
