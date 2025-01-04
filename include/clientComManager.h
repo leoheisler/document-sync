@@ -37,7 +37,7 @@ class clientComManager
         //Sockets
         void connect_sockets(int port, hostent* server);
         
-
+        
         //sync_dir funcs
         void get_sync_dir();
         void receive_sync_dir_files();
@@ -72,7 +72,8 @@ class clientComManager
 
 
         void send_delete_request(std::string file_name);
-
+        // this will recieve either an success response or an error, print message representing status 
+        bool get_response();
         // Setclient file handler
         void set_file_manager(clientFileManager* fm); 
         void set_sock_cmd(int sock_cmd);

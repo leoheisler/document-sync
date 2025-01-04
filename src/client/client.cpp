@@ -41,6 +41,7 @@ class client
                     default: command = Command::NO_COMMAND; break;
                 }
                 communication_manager.execute_command(command);
+                communication_manager.get_response();
             }
         }
         /*

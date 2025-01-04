@@ -35,6 +35,7 @@ class Packet {
             HEARTBEAT_PACKET = 0x0007,
             ELECTION_PACKET = 0x0008,
             EOT_PACKET = 0x0009,
+            SUCCESS = 0x000A
         };
 
         // Constant for total packet size in bytes
