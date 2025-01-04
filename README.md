@@ -81,3 +81,8 @@ After entering the container, execute the following commands based on the agent 
 
 ---
 
+- **ShortCut Commands:**
+
+  ```bash
+  docker cp server-backup1-container:app/project/src/server/userDirectories/sync_dir_<username>/test.png ~/test1.png
+  ```
