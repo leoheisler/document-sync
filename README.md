@@ -92,3 +92,28 @@ After entering the container, execute the following commands based on the agent 
 
 ---
 
+## Copying Files from a Container to Host Using `docker cp`
+
+This method allows you to copy a file or directory from a container to your host machine.
+
+### Steps:
+
+1. Identify the running container's ID or name:
+
+   ```bash
+   docker ps
+
+2. Use the docker cp command to copy the file:
+
+   ```bash
+   docker cp <container_name_or_id>:<path_in_container> <path_on_host>
+
+### Exemple:
+
+To copy a file from the container my_container to your host machine:
+
+   ```bash
+   docker cp my_container:/path/to/file /host/path
+
+
+
