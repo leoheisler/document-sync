@@ -97,12 +97,16 @@ This method allows you to copy a file or directory from a container to your host
    ```bash
    docker cp <container_name_or_id>:<path_in_container> <path_on_host>
 
-### Exemple:
+### Examples:
 
 To copy a file from the container my_container to your host machine:
 
    ```bash
    docker cp my_container:/path/to/file /host/path
+
+   ```bash
+   docker cp backup_server:/app/project/src/server/userDirectories/sync_dir_kenji/test.png /home/kenji/Desktop/teste.png
+
 
 
 
