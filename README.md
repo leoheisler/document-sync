@@ -23,10 +23,72 @@ To build and run this project, you can choose one of the following options:
 3. Navigate to the build directory and build the project with 'cd build ; cmake ..; make'
 
 ### Running the project
-1. Install docker: use this link to install docker engine in your ubuntu machine in the easiest way possible -- https://docs.docker.com/engine/install/ubuntu/ ;
-2. Navigate to the project root and run 'docker build -t docsync-image .', this command build the image used for the containers in the application, is the same image for all the different agents (server, backup server and clients);
-3. To run the container for an agent type: 'docker run -it --name <container-name> --network docksync-network --rm docsync-image', the <container-name> is self explanatory, give a name that represents the part that the agent will take on you execution (server, backup server, client); 
-4. Now inside the container, for each different agent:
-   For Client: Execute: './myClient <client-username> <primary-server-container-name> <primary-server-port>' <br>
-   For Primary Server: './myServer' or './myServer <port-for-server-to-run>' <br>
-   For Backup Servers: './myServer <primary-server-container-name> <primary-server-port>' <br>
+Here’s a concise version of your **README.md**:
+
+---
+
+# **DocumentSync Project**
+
+The **DocumentSync Project** provides a synchronized system with clients, a primary server, and backup servers for seamless file management.
+
+---
+
+## **Getting Started**
+
+## **Notes**
+- Ensure the `docksync-network` Docker network exists. Create it if necessary:
+  ```bash
+  docker network create docksync-network
+  ```
+- Replace placeholders (`<...>`) with appropriate values for your setup.
+
+--- 
+
+### 1. **Install Docker**
+Follow the instructions in the [Docker Engine Installation Guide for Ubuntu](https://docs.docker.com/engine/install/ubuntu/) to set up Docker on your machine.
+
+### 2. **Build the Docker Image**
+Navigate to the project root directory and build the Docker image:
+
+```bash
+docker build -t docsync-image .
+```
+
+This image will be used for all application agents (server, backup server, and clients).
+
+### 3. **Run a Container**
+To run a container for an agent, use the following command:
+
+```bash
+docker run -it --name <container-name> --network docksync-network --rm docsync-image
+```
+
+Replace `<container-name>` with a name that represents the agent (e.g., server, backup server, or client).
+
+---
+
+## **Agent Commands**
+
+After entering the container, execute the following commands based on the agent type:
+
+- **Client:**
+  ```bash
+  ./myClient <client-username> <primary-server-container-name> <primary-server-port>
+  ```
+
+- **Primary Server:**
+  ```bash
+  ./myServer
+  ```
+  Or, to specify a custom port:
+  ```bash
+  ./myServer <port-for-server-to-run>
+  ```
+
+- **Backup Server:**
+  ```bash
+  ./myServer <primary-server-container-name> <primary-server-port>
+  ```
+
+---
+
