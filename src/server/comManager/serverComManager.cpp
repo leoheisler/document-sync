@@ -375,6 +375,8 @@ void serverComManager::election_timer(time_t* last_heartbeat)
 			double elapsed_seconds_after_heartbeat = difftime(current_time, *last_heartbeat);
 			if(elapsed_seconds_after_heartbeat > 15){
                 std::cout << "More than 15 seconds have passed since last heartbeat!" << std::endl;
+
+				//START THE ELECTION HERE
 			}
 		}
 		access_heartbeat_time.unlock();
@@ -720,4 +722,66 @@ void serverComManager::connect_to_hostname(char* hostname){
 	start_sockets();
 	connect_sockets(CLIENT_PORT, client_host);
 
+}
+
+
+void serverComManager::create_election_sockets(int outgoing_socket, int incoming_socket) {
+	this->outgoing_election_socket = outgoing_socket;
+	this->incoming_election_socket = incoming_socket;
+}
+
+
+void serverComManager::start_ring_election() {
+    ServerNode* current_server = this->server_list->get_first_server();
+
+    // Enviar uma mensagem de eleição para o próximo servidor
+    if (current_server == nullptr) {
+        std::cout << "No backup servers available for election." << std::endl;
+        return;
+    }
+
+    int starting_socket = current_server->get_socket();
+
+    // Send election messsage to the next server in the ring (using server list)
+    while (current_server != nullptr) {
+		std::string socket_id = std::to_string(current_server->get_socket());
+
+        Packet election_packet(Packet::ELECTION_PACKET, 1, 1, socket_id.c_str(), socket_id.size());
+        election_packet.send_packet(current_server->get_socket());
+
+        // go to the next server
+        current_server = current_server->get_next();
+    }
+
+}
+
+void serverComManager::handle_election(int socket) {
+    ServerNode* current_server = this->server_list->get_first_server();
+    int max_socket = current_server->get_socket();  // Definindo inicialmente o maior identificador
+    ServerNode* leader_server = nullptr;
+
+    while (current_server != nullptr) {
+        // Recebe a mensagem de eleição do servidor anterior
+        Packet received_packet = Packet::receive_packet(socket);
+        
+        // Atualiza o maior identificador
+        if (received_packet.get_socket() > max_socket) {
+            max_socket = received_packet.get_socket();
+            leader_server = current_server;  // O servidor com o maior identificador vira o líder
+        }
+
+        // Passa a mensagem para o próximo servidor
+        if (current_server->get_next() != nullptr) {
+            Packet pass_packet(Packet::ELECTION_PACKET, current_server->get_socket(), "Election");
+            pass_packet.send_packet(current_server->get_next()->get_socket());
+        }
+
+        current_server = current_server->get_next();
+    }
+
+    // No final da eleição, define o líder
+    if (leader_server != nullptr) {
+        leader_server->set_is_leader(true);
+        std::cout << "Server " << leader_server->get_hostname() << " is elected as the leader." << std::endl;
+    }
 }

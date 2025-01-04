@@ -36,6 +36,9 @@ class serverComManager
         int client_cmd_socket = -1;
         int client_upload_socket= -1; 
         int client_fetch_socket = -1;
+        //sockets for the election ring
+        int outgoing_election_socket = -1;
+        int incoming_election_socket = -1;
 
         // Communication Methods
         void start_communications();
@@ -68,5 +71,11 @@ class serverComManager
 
         /*functions used in backup_servers*/
         void connect_to_hostname(char *hostname);
+
+        //functions used for the election in the backup_servers
+        
+        void serverComManager::create_election_sockets(int outgoing_socket, int incoming_socket);
+        void serverComManager::start_ring_election();
+        void serverComManager::handle_election(int socket);
 };
 #endif

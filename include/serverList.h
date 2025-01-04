@@ -8,15 +8,18 @@ class ServerNode {
         int socket;             // Socket number of the server
         std::string hostname;   // Hostname of the server
         ServerNode* next;       // Pointer to the next node
+        bool is_leader;         // bool that says if it is the Leader
 
     public:
         // Constructor
         ServerNode(int sock, const std::string& host = "")
-            : socket(sock), hostname(host), next(nullptr) {}
+            : socket(sock), hostname(host), next(nullptr), is_leader(false)  {}
 
         // Getters and Setters
         int get_socket() const { return socket; }
         void set_socket(int sock) { socket = sock; }
+        bool get_is_leader() const { return is_leader; }
+        void set_is_leader(bool leader_status) { is_leader = leader_status; }
 
         const std::string& get_hostname() const { return hostname; }
         void set_hostname(const std::string& host) { hostname = host; }
