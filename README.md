@@ -23,17 +23,6 @@ To build and run this project, you can choose one of the following options:
 3. Navigate to the build directory and build the project with 'cd build ; cmake ..; make'
 
 ### Running the project
-Here’s a concise version of your **README.md**:
-
----
-
-# **DocumentSync Project**
-
-The **DocumentSync Project** provides a synchronized system with clients, a primary server, and backup servers for seamless file management.
-
----
-
-## **Getting Started**
 
 ## **Notes**
 - Ensure the `docksync-network` Docker network exists. Create it if necessary:
