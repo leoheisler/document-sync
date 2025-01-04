@@ -23,6 +23,10 @@ To build and run this project, you can choose one of the following options:
 3. Navigate to the build directory and build the project with 'cd build ; cmake ..; make'
 
 ### Running the project
-1. Navigate to the build directory
-2. FOR CLIENT: Execute './myClient <'username'> <'server_ip_address'> <'port'>'<br>
-   FOR SERVER: Execute './myServer'
+1. Install docker: use this link to install docker engine in your ubuntu machine in the easiest way possible -- https://docs.docker.com/engine/install/ubuntu/ ;
+2. Navigate to the project root and run 'docker build -t docsync-image .', this command build the image used for the containers in the application, is the same image for all the different agents (server, backup server and clients);
+3. To run the container for an agent type: 'docker run -it --name ***container-name*** --network docksync-network --rm docsync-image', the ***container-name*** is self explanatory, give a name that represents the part that the agent will take on you execution (server, backup server, client); 
+4. Now inside the container, for each different agent:
+   For Client: Execute: './myClient ***client-username*** ***primary-server-container-name*** ***primary-server-port***' <br>
+   For Primary Server: './myServer' or './myServer ***port-for-server-to-run***' <br>
+   For Backup Servers: './myServer ***primary-server-container-name*** ***primary-server-port***' <br>
