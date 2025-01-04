@@ -4,10 +4,12 @@
 #include "packet.h"
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 
 class FileTransfer {
     public:
         static void send_file(const std::string& file_path, int socket) {
+
             ifstream file(file_path, std::ios::binary | std::ios::ate);
 
             // File initialization
@@ -42,6 +44,16 @@ class FileTransfer {
         }
 
         static void receive_file(const std::string& output_path, int socket) {
+            // Ensure the directory exists
+            std::filesystem::path dir = std::filesystem::path(output_path).parent_path();
+            if (!std::filesystem::exists(dir)) {
+                if (!std::filesystem::create_directories(dir)) {
+                    std::cerr << "Error: Cannot create directory " << dir << std::endl;
+                    return;
+                }
+            }
+            std::cout << "*" << std::endl;
+
             std::ofstream file(output_path, std::ios::binary);
             
             // File initialization
