@@ -104,6 +104,7 @@ To copy a file from the container my_container to your host machine:
    ```bash
    docker cp my_container:/path/to/file /host/path
 
+Kenji Example
    ```bash
    docker cp backup_server:/app/project/src/server/userDirectories/sync_dir_kenji/test.png /home/kenji/Desktop/teste.png
 
