@@ -9,6 +9,8 @@ namespace fs = std::filesystem;
 std::mutex access_device_list;
 std::mutex access_server_list;
 std::mutex access_heartbeat_time;
+std::mutex stop_heartbeat_mutex;
+bool stop_heartbeat_thread = false;
 
 // CONSTRUCTOR
 serverComManager::serverComManager(ClientList* client_list, ServerList* server_list){ this->client_list = client_list; this->server_list = server_list;};
@@ -364,7 +366,7 @@ void serverComManager::start_communications()
 	}
 }
 
-void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start_election, int socket)
+void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start_election,int socket)
 {
 	time_t current_time;
 
@@ -376,7 +378,8 @@ void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start
 		{
 			double elapsed_seconds_after_heartbeat = difftime(current_time, *last_heartbeat);
 			if(elapsed_seconds_after_heartbeat > 15){
-        std::cout << "More than 15 seconds have passed since last heartbeat!" << std::endl;
+				
+        		std::cout << "More than 15 seconds have passed since last heartbeat!" << std::endl;
 
 				//START THE ELECTION HERE, if delay 15 seconds, change the bool to true to make it start the election
 				*should_start_election = true;
@@ -386,6 +389,12 @@ void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start
 			}
 		}
 		access_heartbeat_time.unlock();
+
+		// Check if the stop_heartbeat_thread flag is true (it will be set to true to stop the thread)
+        if (stop_heartbeat_thread) {
+            break;
+        }
+
 	}
 }
 /*
@@ -512,90 +521,102 @@ void serverComManager::await_command_packet()
 	}
 }
 
+
+
 // This is the command the backup server uses to await syncronizations
 void serverComManager::await_sync(int socket, bool* elected)
 {
 	bool should_start_election = false;
+	bool wait_election = false;
 	time_t last_heartbeat = time(NULL);
 	std::thread heartbeat_timeout(election_timer, &last_heartbeat, &should_start_election, socket);
 	heartbeat_timeout.detach();
 
 	while(!(*elected))
 	{
-		cout << should_start_election << endl;
+		//cout << should_start_election << endl;
 		if(should_start_election)
 		{
 			cout << "starting election..." << endl;
-			start_ring_election();
+			start_ring_election(&wait_election);
 			should_start_election = false;
+			wait_election = true;
+			// Lock the mutex and set stop_heartbeat_thread to true to stop the timer thread
+            {
+                std::lock_guard<std::mutex> lock(stop_heartbeat_mutex);
+                stop_heartbeat_thread = true;
+            }
 		}
-
-		// wait for only 15 seconds, timeout is important to unblock this thread
-		Packet received_packet = Packet::receive_packet(socket, 15);
-
-		if (received_packet.is_empty()) {
-			std::cout << "No packet received within timeout period.\n";
-			continue;
-    }
-
-		cout << 'recieved_packet: ' << endl;
-		
-		access_heartbeat_time.lock();
+		if(!wait_election)
 		{
-			last_heartbeat = time(NULL);
-		}
-		access_heartbeat_time.unlock();
 
-		switch(received_packet.get_type()){
-			// CMD_PACKET == DELETE SYNC
-			case Packet::CMD_PACKET:
-			{
-				string file_path = strtok(received_packet.get_payload(), "\n");        
-				serverFileManager::delete_file(file_path);
-				break;
+			// wait for only 15 seconds, timeout is important to unblock this thread
+			Packet received_packet = Packet::receive_packet(socket, 15);
+
+			if (received_packet.is_empty()) {
+				std::cout << "No packet received within timeout period.\n";
+				continue;
 			}
 
-			// DATA_PACKET == DOWNLOAD SYNC
-			case Packet::DATA_PACKET:
+			//cout << 'received_packet: ' << endl;
+			
+			access_heartbeat_time.lock();
 			{
-				string file_path = strtok(received_packet.get_payload(), "\n");        
-				FileTransfer::receive_file(file_path, socket);	
-				break;
+				last_heartbeat = time(NULL);
 			}
+			access_heartbeat_time.unlock();
 
-			// CLIENTINFO_PACKET == CLIENT LIST SYNC
-			case Packet::CLIENTINFO_PACKET:
-			{
-				string client_username = strtok(received_packet.get_payload(), "\n");
-				string client_hostname = strtok(nullptr, "\n");
-				this->client_list->add_device(client_username, client_hostname, tuple<int,int,int>(0,0,0));
-				this->client_list->display_clients();
-				break;
-			}
+			switch(received_packet.get_type()){
+				// CMD_PACKET == DELETE SYNC
+				case Packet::CMD_PACKET:
+				{
+					string file_path = strtok(received_packet.get_payload(), "\n");        
+					serverFileManager::delete_file(file_path);
+					break;
+				}
 
-			case Packet::DELETEDEVICE_PACKET:
-			{
-				string client_username = strtok(received_packet.get_payload(), "\n");
-				string client_hostname = strtok(nullptr, "\n");
-				this->client_list->remove_device(client_username, client_hostname);
-				this->client_list->display_clients();
-				break;
-			}
+				// DATA_PACKET == DOWNLOAD SYNC
+				case Packet::DATA_PACKET:
+				{
+					string file_path = strtok(received_packet.get_payload(), "\n");        
+					FileTransfer::receive_file(file_path, socket);	
+					break;
+				}
 
-			// SERVERINFO_PACKET == BACKUP SERVER LIST SYNC
-			case Packet::SERVERINFO_PACKET:
-			{
-				string server_hostname = strtok(received_packet.get_payload(), "\n");
-				this->server_list->add_server(0, server_hostname);
-				this->server_list->display_servers();
-				break;
-			}
+				// CLIENTINFO_PACKET == CLIENT LIST SYNC
+				case Packet::CLIENTINFO_PACKET:
+				{
+					string client_username = strtok(received_packet.get_payload(), "\n");
+					string client_hostname = strtok(nullptr, "\n");
+					this->client_list->add_device(client_username, client_hostname, tuple<int,int,int>(0,0,0));
+					this->client_list->display_clients();
+					break;
+				}
 
-			// HEARTBEAT_PACKET == MAIN SERVER HEARTBEAT
-			case Packet::HEARTBEAT_PACKET:
-			{
-				//cout << "received heartbeat..." << endl;
-				break;
+				case Packet::DELETEDEVICE_PACKET:
+				{
+					string client_username = strtok(received_packet.get_payload(), "\n");
+					string client_hostname = strtok(nullptr, "\n");
+					this->client_list->remove_device(client_username, client_hostname);
+					this->client_list->display_clients();
+					break;
+				}
+
+				// SERVERINFO_PACKET == BACKUP SERVER LIST SYNC
+				case Packet::SERVERINFO_PACKET:
+				{
+					string server_hostname = strtok(received_packet.get_payload(), "\n");
+					this->server_list->add_server(0, server_hostname);
+					this->server_list->display_servers();
+					break;
+				}
+
+				// HEARTBEAT_PACKET == MAIN SERVER HEARTBEAT
+				case Packet::HEARTBEAT_PACKET:
+				{
+					//cout << "received heartbeat..." << endl;
+					break;
+				}
 			}
 		}
 	}
@@ -769,12 +790,14 @@ void serverComManager::start_election_sockets() {
 void serverComManager::bind_incoming_election_socket(){
 	struct sockaddr_in cli_addr;
 	cli_addr.sin_family = AF_INET;
-	cli_addr.sin_port = htons(PORT);
+	cli_addr.sin_port = htons(ELECTION_PORT);
 	cli_addr.sin_addr.s_addr = INADDR_ANY;
 	bzero(&(cli_addr.sin_zero), 8);     
 	if (bind(this->incoming_election_socket, (struct sockaddr *) &cli_addr, sizeof(cli_addr)) < 0){
 		throw std::runtime_error("ERRO BINDANDO O SOCKET");
-	} 
+	}
+
+	cout << "bindei incoming election socket\n"; 
 }
 
 void serverComManager::accept_election_connection(){
@@ -808,7 +831,7 @@ void serverComManager::connect_election_sockets(hostent* backup_server)
 
 
 
-void serverComManager::start_ring_election() {
+void serverComManager::start_ring_election(bool* wait_election) {
 	struct hostent *server;
 	char self_hostname[256];
 	gethostname(self_hostname, sizeof(self_hostname));
@@ -820,16 +843,18 @@ void serverComManager::start_ring_election() {
 	if (server == NULL) {
 		fprintf(stderr,"ERROR, no such host\n");
 		exit(0);
-  }
+  	}
 
 	connect_election_sockets(server);
 
 
-  int next_socket = this->outgoing_election_socket;
+  	int next_socket = this->outgoing_election_socket;
 
 	// Send election packet to the next server
-	Packet election_packet(Packet::ELECTION_PACKET, 1, 1, "Election", 8);
-	election_packet.send_packet(next_socket);
+	//Packet election_packet(Packet::ELECTION_PACKET, 1, 1, "Election", 8);
+	//election_packet.send_packet(next_socket);
+
+	//*wait_election = true;
 }
 
 /*
