@@ -53,7 +53,7 @@ class serverComManager
         void list_server();
         void upload(Packet command_packet);
         void delete_server_file(Packet command_packet);
-        static void election_timer(time_t* last_heartbeat, bool* should_start_election);
+        static void election_timer(time_t* last_heartbeat, bool* should_start_election, int socket);
 
         /*functions used in backup_servers*/
         void connect_sockets(int port, hostent* client_address);

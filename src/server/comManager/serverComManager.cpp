@@ -364,7 +364,7 @@ void serverComManager::start_communications()
 	}
 }
 
-void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start_election)
+void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start_election, int socket)
 {
 	time_t current_time;
 
@@ -380,6 +380,9 @@ void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start
 
 				//START THE ELECTION HERE, if delay 15 seconds, change the bool to true to make it start the election
 				*should_start_election = true;
+				close(socket);
+				std::cout << "Fechei Socket" << std::endl;
+				
 			}
 		}
 		access_heartbeat_time.unlock();
@@ -514,7 +517,7 @@ void serverComManager::await_sync(int socket, bool* elected)
 {
 	bool should_start_election = false;
 	time_t last_heartbeat = time(NULL);
-	std::thread heartbeat_timeout(election_timer, &last_heartbeat, &should_start_election);
+	std::thread heartbeat_timeout(election_timer, &last_heartbeat, &should_start_election, socket);
 	heartbeat_timeout.detach();
 
 	while(!(*elected))
@@ -758,6 +761,8 @@ void serverComManager::start_election_sockets() {
 	//incoming_election_socket used by backup server to listen the previus backup server in the ring
     if ((this->incoming_election_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
         cout << "ERROR opening incoming_election_socket\n";
+
+	cout << "startei election socket\n";
   
 }
 

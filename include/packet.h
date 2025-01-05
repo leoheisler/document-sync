@@ -129,6 +129,14 @@ class Packet {
                     free(stream);
                     return Packet();
                 }
+                /*
+                else if (bytes_received == 0){
+                    std::cerr << "Close socket cause length 0\n";
+                    free(stream);
+                    close(socket); // Close the socket on read error
+                    return Packet();
+                }
+                */
                 total_bytes_received += bytes_received;
             } while (total_bytes_received < PACKET_SIZE);
 
