@@ -34,11 +34,13 @@ class serverComManager
         std::string username = "";
         std::string hostname = "";
         int client_cmd_socket = -1;
-        int client_upload_socket= -1; 
+        int client_upload_socket= -1;
         int client_fetch_socket = -1;
         //sockets for the election ring
         int outgoing_election_socket = -1;
         int incoming_election_socket = -1;
+        //bool that says if it is participating in the election or not
+        bool participant = false;
 
         // Communication Methods
         void start_communications();
@@ -75,8 +77,8 @@ class serverComManager
         //functions used for the election in the backup_servers
         
         void serverComManager::start_election_sockets();
-        void serverComManager::bind_incoming_election_socket(int* incoming_election_socket);
-        void serverComManager::accept_election_connection(int* incoming_election_socket);
+        void serverComManager::bind_incoming_election_socket();
+        void serverComManager::accept_election_connection();
         void serverComManager::connect_election_sockets(hostent* backup_server);
         void serverComManager::start_ring_election();
         void serverComManager::handle_election(int socket);

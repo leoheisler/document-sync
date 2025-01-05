@@ -5,7 +5,7 @@
 
 class ServerNode {
     private:
-        int socket;             // Socket number of the server
+        int socket;             // Socket number of the server, will be used as the id for the election as well
         std::string hostname;   // Hostname of the server
         ServerNode* next;       // Pointer to the next node
         bool is_leader;         // bool that says if it is the Leader
@@ -94,6 +94,26 @@ class ServerList {
                 current = current->get_next();
             }
             std::cout << "SERVER NOT FOUND" << std::endl;
+            return nullptr;
+        }
+
+        ServerNode* find_next_server(const std::string& hostname) const {
+            if (head == nullptr) {
+                return nullptr; // Empty list
+            }
+
+            ServerNode* current = head;
+
+            while (current != nullptr) {
+                if (current->get_hostname() == hostname) {
+                    // If it is the last one, return the first node of the list (ring connection)
+                    return (current->get_next() != nullptr) ? current->get_next() : head;
+                }
+                current = current->get_next();
+            }
+
+            // If none has the host name, return null
+            std::cout << "HOSTNAME NOT FOUND" << std::endl;
             return nullptr;
         }
 

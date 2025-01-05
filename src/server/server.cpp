@@ -152,6 +152,14 @@ int main(int argc, char *argv[])
 		com_manager.receive_client_list(server_socket);
 		serverFileManager::receive_sync_dir_files(server_socket);
 
+		//Initialize sockets for the election
+		com_manager.start_election_sockets();
+		com_manager.bind_incoming_election_socket();
+		
+		// create listener thread
+        thread listener_thread(&serverComManager::accept_election_connection,com_manager);
+		listener_thread.detach();
+
 		// Infinite loop awaiting syncronizations from main server
 		com_manager.await_sync(server_socket, &elected);
 	}

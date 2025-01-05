@@ -411,8 +411,6 @@ void serverComManager::start_sockets()
     if ((this->client_fetch_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
         cout << "ERROR opening fetch socket\n";
 
-	//start also the election sockets
-	start_election_sockets();
     
 }
 
@@ -520,6 +518,7 @@ void serverComManager::await_sync(int socket, bool* elected)
 	{
 		if(should_start_election)
 		{
+			cout << "starting election..." << endl;
 			start_ring_election();
 		}
 
@@ -749,34 +748,27 @@ void serverComManager::start_election_sockets() {
   
 }
 
-void serverComManager::bind_incoming_election_socket(int* incoming_election_socket){
+void serverComManager::bind_incoming_election_socket(){
 	struct sockaddr_in cli_addr;
 	cli_addr.sin_family = AF_INET;
 	cli_addr.sin_port = htons(PORT);
 	cli_addr.sin_addr.s_addr = INADDR_ANY;
 	bzero(&(cli_addr.sin_zero), 8);     
-	if (bind(*incoming_election_socket, (struct sockaddr *) &cli_addr, sizeof(cli_addr)) < 0){
+	if (bind(this->incoming_election_socket, (struct sockaddr *) &cli_addr, sizeof(cli_addr)) < 0){
 		throw std::runtime_error("ERRO BINDANDO O SOCKET");
 	} 
 }
 
-void serverComManager::accept_election_connection(int* incoming_election_socket){
+void serverComManager::accept_election_connection(){
 	int first_contact_socket;
 	struct sockaddr_in previous_backup_address;
     socklen_t previous_backup_len = sizeof(struct sockaddr_in);
 
-	/*
-	try{
-		bind_client_socket(&listening_socket);
-	}catch(const std::exception& e){
-		std::cerr << e.what() << '\n';
-	}
-	*/
 	
-	listen(*incoming_election_socket, 1);
+	listen(this->incoming_election_socket, 1);
 
 	while(true){
-		first_contact_socket = accept(*incoming_election_socket,(struct sockaddr*)&previous_backup_address,&previous_backup_len);
+		first_contact_socket = accept(this->incoming_election_socket,(struct sockaddr*)&previous_backup_address,&previous_backup_len);
 	}
 }
 
@@ -790,7 +782,7 @@ void serverComManager::connect_election_sockets(hostent* backup_server)
 	bzero(&(serv_addr.sin_zero), 8);  
 
     if (connect(this->outgoing_election_socket,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-        cout << "ERROR connecting cmd socket\n";
+        cout << "ERROR connecting outgoing_election_socket\n";
     else
         cout <<"outgoing_election_socket connected\n";
 
@@ -800,27 +792,27 @@ void serverComManager::connect_election_sockets(hostent* backup_server)
 
 
 void serverComManager::start_ring_election() {
-    ServerNode* current_server = this->server_list->get_first_server();
+	struct hostent *server;
+	char self_hostname[256];
+	gethostname(self_hostname, sizeof(self_hostname));
+	ServerNode* next_backup_s = this->server_list->find_next_server(self_hostname);
 
-    // Enviar uma mensagem de eleição para o próximo servidor
-    if (current_server == nullptr) {
-        std::cout << "No backup servers available for election." << std::endl;
-        return;
+
+	server = gethostbyname(next_backup_s->get_hostname().c_str());
+
+	if (server == NULL) {
+        fprintf(stderr,"ERROR, no such host\n");
+        exit(0);
     }
 
-    int starting_socket = current_server->get_socket();
+	connect_election_sockets(server);
 
-    // Send election messsage to the next server in the ring (using server list)
-    while (current_server != nullptr) {
-		std::string socket_id = std::to_string(current_server->get_socket());
 
-        Packet election_packet(Packet::ELECTION_PACKET, 1, 1, socket_id.c_str(), socket_id.size());
-        election_packet.send_packet(current_server->get_socket());
+    int next_socket = this->outgoing_election_socket;
 
-        // go to the next server
-        current_server = current_server->get_next();
-    }
-
+	// Send election packet to the next server
+	Packet election_packet(Packet::ELECTION_PACKET, 1, 1, "Election", 8);
+	election_packet.send_packet(next_socket);
 }
 
 /*
