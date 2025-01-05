@@ -376,7 +376,7 @@ void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start
 		{
 			double elapsed_seconds_after_heartbeat = difftime(current_time, *last_heartbeat);
 			if(elapsed_seconds_after_heartbeat > 15){
-                std::cout << "More than 15 seconds have passed since last heartbeat!" << std::endl;
+        std::cout << "More than 15 seconds have passed since last heartbeat!" << std::endl;
 
 				//START THE ELECTION HERE, if delay 15 seconds, change the bool to true to make it start the election
 				*should_start_election = true;
@@ -462,7 +462,7 @@ void serverComManager::await_command_packet()
 	bool exit = false;
 	while(!exit) {
 		// Wait to receive a command packet from client
-		Packet command_packet = Packet::receive_packet(this->client_cmd_socket);
+		Packet command_packet = Packet::receive_packet(this->client_cmd_socket, 15);
 
 		// Determine what to do based on the command packet received
 		switch(command_packet.get_seqn()){
@@ -519,14 +519,24 @@ void serverComManager::await_sync(int socket, bool* elected)
 
 	while(!(*elected))
 	{
+		cout << should_start_election << endl;
 		if(should_start_election)
 		{
 			cout << "starting election..." << endl;
 			start_ring_election();
+			should_start_election = false;
 		}
 
-		Packet received_packet = Packet::receive_packet(socket);
+		// wait for only 15 seconds, timeout is important to unblock this thread
+		Packet received_packet = Packet::receive_packet(socket, 15);
 
+		if (received_packet.is_empty()) {
+			std::cout << "No packet received within timeout period.\n";
+			continue;
+    }
+
+		cout << 'recieved_packet: ' << endl;
+		
 		access_heartbeat_time.lock();
 		{
 			last_heartbeat = time(NULL);
@@ -777,18 +787,17 @@ void serverComManager::accept_election_connection(){
 
 void serverComManager::connect_election_sockets(hostent* backup_server)
 {
-    struct sockaddr_in serv_addr;
+  struct sockaddr_in serv_addr;
 
-    serv_addr.sin_family = AF_INET;     
+  serv_addr.sin_family = AF_INET;     
 	serv_addr.sin_port = htons(ELECTION_PORT);    
 	serv_addr.sin_addr = *((struct in_addr *)backup_server->h_addr);
 	bzero(&(serv_addr.sin_zero), 8);  
 
-    if (connect(this->outgoing_election_socket,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-        cout << "ERROR connecting outgoing_election_socket\n";
-    else
-        cout <<"outgoing_election_socket connected\n";
-
+	if (connect(this->outgoing_election_socket,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+			cout << "ERROR connecting outgoing_election_socket\n";
+	else
+			cout <<"outgoing_election_socket connected\n";
 
 }
 
@@ -804,14 +813,14 @@ void serverComManager::start_ring_election() {
 	server = gethostbyname(next_backup_s->get_hostname().c_str());
 
 	if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host\n");
-        exit(0);
-    }
+		fprintf(stderr,"ERROR, no such host\n");
+		exit(0);
+  }
 
 	connect_election_sockets(server);
 
 
-    int next_socket = this->outgoing_election_socket;
+  int next_socket = this->outgoing_election_socket;
 
 	// Send election packet to the next server
 	Packet election_packet(Packet::ELECTION_PACKET, 1, 1, "Election", 8);

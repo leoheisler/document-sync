@@ -76,11 +76,11 @@ class serverComManager
 
         //functions used for the election in the backup_servers
         
-        void serverComManager::start_election_sockets();
-        void serverComManager::bind_incoming_election_socket();
-        void serverComManager::accept_election_connection();
-        void serverComManager::connect_election_sockets(hostent* backup_server);
-        void serverComManager::start_ring_election();
-        void serverComManager::handle_election(int socket);
+        void start_election_sockets();
+        void bind_incoming_election_socket();
+        void accept_election_connection();
+        void connect_election_sockets(hostent* backup_server);
+        void start_ring_election();
+        void handle_election(int socket);
 };
 #endif
