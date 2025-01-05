@@ -503,6 +503,9 @@ void serverComManager::await_command_packet()
 				break;
         	}
 		}
+
+		Packet ack_packet(Packet::SUCCESS, 1, 1, "", 0);
+		ack_packet.send_packet(this->client_cmd_socket);
 	}
 }
 

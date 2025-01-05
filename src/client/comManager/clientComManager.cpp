@@ -336,6 +336,23 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
     return 0;
 }
 
+bool clientComManager::get_response() {
+    // Wait for the server's response
+    Packet received_message = Packet::receive_packet(this->sock_cmd);
+
+    // Check the type of the packet to determine the response
+    if (received_message.get_type() == Packet::SUCCESS) {
+        std::cout << "All good.\n";
+        return true;
+    } else if (received_message.get_type() == Packet::ERR) {
+        std::cerr << "Error processing request.\n";
+        return false;
+    } else {
+        std::cerr << "Unexpected error processing request.\n" << received_message.get_type() << std::endl;
+        return false;
+    }
+}
+
 void clientComManager::await_sync()
 {
     Packet received_packet = Packet::receive_packet(this->sock_fetch);
