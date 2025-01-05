@@ -4,6 +4,8 @@ using namespace std;
 namespace fs = std::filesystem;
 #define CLIENT_PORT 1909
 #define PORT 4000
+#define ELECTION_PORT 3999
+
 std::mutex access_device_list;
 std::mutex access_server_list;
 std::mutex access_heartbeat_time;
@@ -362,7 +364,7 @@ void serverComManager::start_communications()
 	}
 }
 
-void serverComManager::election_timer(time_t* last_heartbeat)
+void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start_election)
 {
 	time_t current_time;
 
@@ -376,7 +378,8 @@ void serverComManager::election_timer(time_t* last_heartbeat)
 			if(elapsed_seconds_after_heartbeat > 15){
                 std::cout << "More than 15 seconds have passed since last heartbeat!" << std::endl;
 
-				//START THE ELECTION HERE
+				//START THE ELECTION HERE, if delay 15 seconds, change the bool to true to make it start the election
+				*should_start_election = true;
 			}
 		}
 		access_heartbeat_time.unlock();
@@ -407,6 +410,9 @@ void serverComManager::start_sockets()
     //sock_fetch used for the client to download files from the server if synchronization needed
     if ((this->client_fetch_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
         cout << "ERROR opening fetch socket\n";
+
+	//start also the election sockets
+	start_election_sockets();
     
 }
 
@@ -505,12 +511,18 @@ void serverComManager::await_command_packet()
 // This is the command the backup server uses to await syncronizations
 void serverComManager::await_sync(int socket, bool* elected)
 {
+	bool should_start_election = false;
 	time_t last_heartbeat = time(NULL);
-	std::thread heartbeat_timeout(election_timer, &last_heartbeat);
+	std::thread heartbeat_timeout(election_timer, &last_heartbeat, &should_start_election);
 	heartbeat_timeout.detach();
 
 	while(!(*elected))
 	{
+		if(should_start_election)
+		{
+			start_ring_election();
+		}
+
 		Packet received_packet = Packet::receive_packet(socket);
 
 		access_heartbeat_time.lock();
@@ -630,11 +642,12 @@ void serverComManager::add_backup_server(int backup_server_socket, string hostna
 			backup_server = backup_server->get_next();
 		}
 
+		// Add connecting backup server to server list
+		this->server_list->add_server(backup_server_socket, hostname);
+
 		// Backup current server list to connecting backup server
 		backup_server_list(backup_server_socket);
 
-		// Add connecting backup server to server list
-		this->server_list->add_server(backup_server_socket, hostname);
 		this->server_list->display_servers();
 	}
 	access_server_list.unlock();
@@ -725,10 +738,65 @@ void serverComManager::connect_to_hostname(char* hostname){
 }
 
 
-void serverComManager::create_election_sockets(int outgoing_socket, int incoming_socket) {
-	this->outgoing_election_socket = outgoing_socket;
-	this->incoming_election_socket = incoming_socket;
+void serverComManager::start_election_sockets() {
+	//outgoing_election_socket used by backup server to connect to the next backup server in the ring
+    if ((this->outgoing_election_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
+        cout << "ERROR opening outgoing_election_socket\n";
+
+	//incoming_election_socket used by backup server to listen the previus backup server in the ring
+    if ((this->incoming_election_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
+        cout << "ERROR opening incoming_election_socket\n";
+  
 }
+
+void serverComManager::bind_incoming_election_socket(int* incoming_election_socket){
+	struct sockaddr_in cli_addr;
+	cli_addr.sin_family = AF_INET;
+	cli_addr.sin_port = htons(PORT);
+	cli_addr.sin_addr.s_addr = INADDR_ANY;
+	bzero(&(cli_addr.sin_zero), 8);     
+	if (bind(*incoming_election_socket, (struct sockaddr *) &cli_addr, sizeof(cli_addr)) < 0){
+		throw std::runtime_error("ERRO BINDANDO O SOCKET");
+	} 
+}
+
+void serverComManager::accept_election_connection(int* incoming_election_socket){
+	int first_contact_socket;
+	struct sockaddr_in previous_backup_address;
+    socklen_t previous_backup_len = sizeof(struct sockaddr_in);
+
+	/*
+	try{
+		bind_client_socket(&listening_socket);
+	}catch(const std::exception& e){
+		std::cerr << e.what() << '\n';
+	}
+	*/
+	
+	listen(*incoming_election_socket, 1);
+
+	while(true){
+		first_contact_socket = accept(*incoming_election_socket,(struct sockaddr*)&previous_backup_address,&previous_backup_len);
+	}
+}
+
+void serverComManager::connect_election_sockets(hostent* backup_server)
+{
+    struct sockaddr_in serv_addr;
+
+    serv_addr.sin_family = AF_INET;     
+	serv_addr.sin_port = htons(ELECTION_PORT);    
+	serv_addr.sin_addr = *((struct in_addr *)backup_server->h_addr);
+	bzero(&(serv_addr.sin_zero), 8);  
+
+    if (connect(this->outgoing_election_socket,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+        cout << "ERROR connecting cmd socket\n";
+    else
+        cout <<"outgoing_election_socket connected\n";
+
+
+}
+
 
 
 void serverComManager::start_ring_election() {
@@ -755,6 +823,7 @@ void serverComManager::start_ring_election() {
 
 }
 
+/*
 void serverComManager::handle_election(int socket) {
     ServerNode* current_server = this->server_list->get_first_server();
     int max_socket = current_server->get_socket();  // Definindo inicialmente o maior identificador
@@ -785,3 +854,4 @@ void serverComManager::handle_election(int socket) {
         std::cout << "Server " << leader_server->get_hostname() << " is elected as the leader." << std::endl;
     }
 }
+*/

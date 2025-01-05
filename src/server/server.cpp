@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in client_address;
 	socklen_t client_len = sizeof(struct sockaddr_in);
 
-	// Linked list to store client infos 
+	// Linked list to store client and server infos 
     ClientList client_device_list;
 	ServerList server_list;
 

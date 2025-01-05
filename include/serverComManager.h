@@ -51,7 +51,7 @@ class serverComManager
         void list_server();
         void upload(Packet command_packet);
         void delete_server_file(Packet command_packet);
-        static void election_timer(time_t* last_heartbeat);
+        static void election_timer(time_t* last_heartbeat, bool* should_start_election);
 
         /*functions used in backup_servers*/
         void connect_sockets(int port, hostent* client_address);
@@ -74,7 +74,10 @@ class serverComManager
 
         //functions used for the election in the backup_servers
         
-        void serverComManager::create_election_sockets(int outgoing_socket, int incoming_socket);
+        void serverComManager::start_election_sockets();
+        void serverComManager::bind_incoming_election_socket(int* incoming_election_socket);
+        void serverComManager::accept_election_connection(int* incoming_election_socket);
+        void serverComManager::connect_election_sockets(hostent* backup_server);
         void serverComManager::start_ring_election();
         void serverComManager::handle_election(int socket);
 };
