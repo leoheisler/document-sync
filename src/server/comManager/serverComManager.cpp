@@ -385,15 +385,17 @@ void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start
 				*should_start_election = true;
 				close(socket);
 				std::cout << "Fechei Socket" << std::endl;
+				// close the thread because we dont have to count until election ends
+				stop_heartbeat_thread = true;
 				
 			}
 		}
 		access_heartbeat_time.unlock();
 
 		// Check if the stop_heartbeat_thread flag is true (it will be set to true to stop the thread)
-        if (stop_heartbeat_thread) {
-            break;
-        }
+		if (stop_heartbeat_thread) {
+				break;
+		}
 
 	}
 }
