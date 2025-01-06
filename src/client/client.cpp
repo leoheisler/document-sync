@@ -9,7 +9,7 @@
 #include "packet.h"
 
 using namespace std;
-#define PORT 1909
+#define PORT 4008
 class client
 {
     private:
@@ -114,6 +114,7 @@ class client
                         //cout << "upload socket connected again" << endl;
                         communication_manager.set_sock_fetch(third_contact_socket);
                         //cout << "fetch socket connected again" << endl;
+                        file_manager->set_sockets(first_contact_socket, second_contact_socket, third_contact_socket);
                     }catch(const std::exception& e){
                         std::cerr << e.what() << endl;
                     }

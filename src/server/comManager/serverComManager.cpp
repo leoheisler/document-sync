@@ -2,7 +2,7 @@
 
 using namespace std;
 namespace fs = std::filesystem;
-#define CLIENT_PORT 1909
+#define CLIENT_PORT 4008
 #define PORT 4000
 #define BACKUP_PORT 4001
 #define ELECTION_PORT 3999
@@ -506,7 +506,7 @@ void serverComManager::heartbeat_protocol(ServerList* server_list){
 		std::this_thread::sleep_for(std::chrono::seconds(5)); 
 		// cout << "sending heartbeat" << endl;
 
-		server_list->display_servers();
+		// server_list->display_servers();
 		ServerNode* backup_server = server_list->get_first_server();
 		
 		while(backup_server != nullptr){
