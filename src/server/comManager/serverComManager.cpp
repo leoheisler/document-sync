@@ -630,7 +630,7 @@ void serverComManager::await_sync(int socket, bool* elected) {
 		//cout << should_start_election << endl;
 		if(should_start_election)
 		{
-
+			build_ring();
 			start_ring_election(&wait_election);
 			should_start_election = false;
 			wait_election = true;
@@ -639,6 +639,9 @@ void serverComManager::await_sync(int socket, bool* elected) {
                 std::lock_guard<std::mutex> lock(stop_heartbeat_mutex);
                 stop_heartbeat_thread = true;
             }
+		}
+		if(wait_election){
+			handle_election(&wait_election, elected);
 		}
 		if(!wait_election)
 		{
@@ -714,9 +717,236 @@ void serverComManager::await_sync(int socket, bool* elected) {
 		}
 	}
 }
-//================================================
-//  BACKUP_SERVER: CLIENT REVERSE CONNECTION
-//================================================
+
+
+
+
+/*
+====================================================================================================
+                           				ELECTION FUNCTIONS
+====================================================================================================
+*/
+// start sockets to create the ring
+void serverComManager::start_election_sockets() {
+	//listening_socket used by backup server to connect to the next backup server in the ring
+    if ((this->listening_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
+        cout << "ERROR opening listening_socket\n";
+
+	//outgoing_election_socket used by backup server to connect to the next backup server in the ring
+    if ((this->outgoing_election_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
+        cout << "ERROR opening outgoing_election_socket\n";
+
+	cout << "startei election sockets\n";
+  
+}
+// bind de election ring sockets
+void serverComManager::bind_incoming_election_socket(){
+	struct sockaddr_in cli_addr;
+	cli_addr.sin_family = AF_INET;
+	cli_addr.sin_port = htons(ELECTION_PORT);
+	cli_addr.sin_addr.s_addr = INADDR_ANY;
+	bzero(&(cli_addr.sin_zero), 8);     
+	if (bind(this->listening_socket, (struct sockaddr *) &cli_addr, sizeof(cli_addr)) < 0){
+		throw std::runtime_error("ERRO BINDANDO O LISTENING SOCKET");
+	}
+
+	cout << "bindei incoming election socket\n"; 
+
+	
+	//Setting the ID for the election
+	char self_hostname[256];
+	gethostname(self_hostname, sizeof(self_hostname));
+
+	this->id = this->server_list->get_server_id(self_hostname);
+
+	cout << "MINHA ID EH:" << this->id << endl ;
+}
+
+
+
+//send ring connection and wait for a link
+void serverComManager::build_ring(){
+	cout << "building ring..." << endl;
+	struct hostent *server;
+	char self_hostname[256];
+	gethostname(self_hostname, sizeof(self_hostname));
+	ServerNode* next_backup_s = this->server_list->find_next_server(self_hostname);
+
+	server = gethostbyname(next_backup_s->get_hostname().c_str());
+
+	if (server == NULL) {
+		fprintf(stderr,"ERROR, no such host\n");
+		exit(0);
+	}
+
+	connect_election_sockets(server);
+
+	while( this->incoming_election_socket == -1){
+
+	}
+}
+// send connection
+void serverComManager::connect_election_sockets(hostent* backup_server) {
+	struct sockaddr_in serv_addr;
+
+	serv_addr.sin_family = AF_INET;     
+	serv_addr.sin_port = htons(ELECTION_PORT);    
+	serv_addr.sin_addr = *((struct in_addr *)backup_server->h_addr);
+	bzero(&(serv_addr.sin_zero), 8);  
+
+	if (connect(this->outgoing_election_socket,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+		cout << "ERROR connecting outgoing_election_socket\n";
+	else
+		cout <<"outgoing_election_socket connected\n";
+
+}
+// accepts ring connections
+void serverComManager::accept_election_connection(){
+	int listening_socket;
+	int first_contact_socket;
+	struct sockaddr_in previous_backup_address;
+    socklen_t previous_backup_len = sizeof(struct sockaddr_in);
+
+	
+	listen(this->listening_socket, 1);
+
+	
+	this->incoming_election_socket = accept(this->listening_socket,(struct sockaddr*)&previous_backup_address,&previous_backup_len);
+	cout << "incoming election connection accepted" <<endl;
+}
+
+void serverComManager::start_ring_election(bool* wait_election) {
+
+	if(not(this->participant)){
+		int outgoing_socket = this->outgoing_election_socket;
+
+		std::string my_id = std::to_string(this->id)+ "\n";
+
+		Packet election_packet = Packet(Packet::ELECTION_PACKET, 1, 1, my_id.c_str(), my_id.size());
+		election_packet.send_packet(outgoing_socket);
+
+		this->participant = true;
+
+
+		cout << "MANDEI PACKET para outgoing socket!!" << endl;
+	}
+	
+}
+
+
+// Recieve incomming election packet and execute ring logic and send outgoing packet.
+void serverComManager::handle_election(bool* wait_election, bool* elected) {
+	
+	this->participant = true;
+	//====================== HANDLING PACKET  ====================
+
+
+	int my_id = this->id;  // Definindo inicialmente o maior identificador
+	int max_id;
+
+	// recieves incoming election packet from previous server
+	Packet received_packet = Packet::receive_packet(this->incoming_election_socket);
+
+	// Extract the payload
+	std::string received_id = strtok(received_packet.get_payload(), "\n");
+
+	cout << "RECEBI UM PACOTE Q DENTRO TINHA:" << received_id << endl;
+
+	int payload_id = std::stoi(received_id);
+
+
+	// sets to where you send the packet
+	int outgoing_socket = this->outgoing_election_socket;
+
+	// The servers can send two types of messages, either an ELECTION or an ELECTED, id they recieve an ELECTED message, then...
+	if (received_packet.get_type() == Packet::ELECTED_PACKET) {
+		// find the server with the elected id, set it as the elected server
+		if (my_id == payload_id) {
+			cout << "I WAS ELECTED!!" << endl;
+			*wait_election = false;
+			*elected =true;
+			close_old_connections();
+			evolve_into_main();
+			return;
+		} else {
+			cout << "SOMEONE WAS ELECTED!!!!" << endl;
+			*wait_election = false;
+			Packet elected_leader_packet = Packet(Packet::ELECTED_PACKET, 1, 1, received_id.c_str(), received_id.size());
+			elected_leader_packet.send_packet(outgoing_socket);
+			close_old_connections();
+			return;
+		}
+	}
+
+	if (received_packet.get_type() != Packet::ELECTION_PACKET)
+	{
+		cerr << "ERROR: wrong packet type during election!"<< endl;
+	}
+	
+
+	if (my_id < payload_id){
+		max_id = payload_id;
+	} else if (my_id > payload_id) {
+		if (this->participant) {
+			return;
+		} else {
+			max_id = payload_id; 		
+		}
+	} else if (my_id == payload_id){
+		// this means that the server is the elected one.
+		cout << "KENJI WAS ELECTED!!!!" << endl;
+		Packet elected_leader_packet = Packet(Packet::ELECTED_PACKET, 1, 1, received_id.c_str(), received_id.size());
+		elected_leader_packet.send_packet(outgoing_socket);
+		return;
+		
+	}
+
+
+	//here is the election packet
+	std::string string_max_id = std::to_string(max_id) + "\n";
+	Packet election_packet = Packet(Packet::ELECTION_PACKET, 1, 1, string_max_id.c_str(), string_max_id.size());
+
+	election_packet.send_packet(outgoing_socket);
+
+}
+void serverComManager::close_old_connections(){
+	close(this->incoming_election_socket);
+	close(this->outgoing_election_socket);
+}
+/*
+==============================================================
+				BACKUP_SERVER TO MAIN_SERVER
+=============================================================
+*/
+//SET TRANSFORMS BACKUP_SERVER INTO MAIN_SERVER
+void serverComManager::evolve_into_main() {
+
+	string teste_client_hostname = this->client_list->get_first_client()->get_device1_hostname();
+	connect_to_hostname(const_cast<char*>(teste_client_hostname.c_str()));
+	
+}
+
+//=========================================================
+//  BACKUP_SERVER TO MAIN: CLIENT REVERSE CONNECTION
+//=========================================================
+/*
+	GIVEN A STRING HOSTNAME, IT CONNECTS THE SERVER_COM SOCKETS TO
+	THE ADDRESS FOUND, IF IT COULDN'T FIND ANY IT EXITS W/0
+*/
+void serverComManager::connect_to_hostname(char* hostname){
+	struct hostent *client_host; 
+	client_host = gethostbyname(hostname);
+
+	if(client_host == NULL){
+		cout << "NAO CONSEGUI ENCONTRAR O ENDERECO \n";
+		exit(0);
+	}
+	start_sockets();
+	connect_sockets(CLIENT_PORT, client_host);
+	await_command_packet();
+
+}
+//aux functs
 /*
 	START SOCKETS: start sockets to client connection
 */
@@ -766,211 +996,5 @@ void serverComManager::connect_sockets(int port, hostent* client_host) {
     
 }
 
-/*
-	GIVEN A STRING HOSTNAME, IT CONNECTS THE SERVER_COM SOCKETS TO
-	THE ADDRESS FOUND, IF IT COULDN'T FIND ANY IT EXITS W/0
-*/
-void serverComManager::connect_to_hostname(char* hostname){
-	struct hostent *client_host; 
-	client_host = gethostbyname(hostname);
-
-	if(client_host == NULL){
-		cout << "NAO CONSEGUI ENCONTRAR O ENDERECO \n";
-		exit(0);
-	}
-	start_sockets();
-	connect_sockets(CLIENT_PORT, client_host);
-
-}
 
 
-
-/*
-====================================================================================================
-                           				ELECTION FUNCTIONS
-====================================================================================================
-*/
-// start sockets to create the ring
-void serverComManager::start_election_sockets() {
-	//outgoing_election_socket used by backup server to connect to the next backup server in the ring
-    if ((this->outgoing_election_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-        cout << "ERROR opening outgoing_election_socket\n";
-
-	//incoming_election_socket used by backup server to listen the previus backup server in the ring
-    if ((this->incoming_election_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-        cout << "ERROR opening incoming_election_socket\n";
-
-	cout << "startei election socket\n";
-  
-}
-// bind de election ring sockets
-void serverComManager::bind_incoming_election_socket(){
-	struct sockaddr_in cli_addr;
-	cli_addr.sin_family = AF_INET;
-	cli_addr.sin_port = htons(ELECTION_PORT);
-	cli_addr.sin_addr.s_addr = INADDR_ANY;
-	bzero(&(cli_addr.sin_zero), 8);     
-	if (bind(this->incoming_election_socket, (struct sockaddr *) &cli_addr, sizeof(cli_addr)) < 0){
-		throw std::runtime_error("ERRO BINDANDO O SOCKET");
-	}
-
-	cout << "bindei incoming election socket\n"; 
-
-	
-	//Setting the ID for the election
-	char self_hostname[256];
-	gethostname(self_hostname, sizeof(self_hostname));
-
-	this->id = this->server_list->get_server_id(self_hostname);
-}
-
-// accepts ring connections
-void serverComManager::accept_election_connection(){
-	int first_contact_socket;
-	struct sockaddr_in previous_backup_address;
-    socklen_t previous_backup_len = sizeof(struct sockaddr_in);
-
-	
-	listen(this->incoming_election_socket, 1);
-
-	
-	first_contact_socket = accept(this->incoming_election_socket,(struct sockaddr*)&previous_backup_address,&previous_backup_len);
-
-
-	handle_election(this->incoming_election_socket);
-	
-}
-
-// builds the ring
-void serverComManager::connect_election_sockets(hostent* backup_server) {
-	struct sockaddr_in serv_addr;
-
-	serv_addr.sin_family = AF_INET;     
-	serv_addr.sin_port = htons(ELECTION_PORT);    
-	serv_addr.sin_addr = *((struct in_addr *)backup_server->h_addr);
-	bzero(&(serv_addr.sin_zero), 8);  
-
-	if (connect(this->outgoing_election_socket,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-		cout << "ERROR connecting outgoing_election_socket\n";
-	else
-		cout <<"outgoing_election_socket connected\n";
-
-}
-
-void serverComManager::start_ring_election(bool* wait_election) {
-	if(not(this->participant)){
-		cout << "starting election..." << endl;
-		struct hostent *server;
-		char self_hostname[256];
-		gethostname(self_hostname, sizeof(self_hostname));
-		ServerNode* next_backup_s = this->server_list->find_next_server(self_hostname);
-
-
-		server = gethostbyname(next_backup_s->get_hostname().c_str());
-
-		if (server == NULL) {
-			fprintf(stderr,"ERROR, no such host\n");
-			exit(0);
-		}
-
-		connect_election_sockets(server);
-
-		this->participant = true;
-
-
-		int outgoing_socket = this->outgoing_election_socket;
-
-		std::string my_id = std::to_string(this->id);
-
-		Packet election_packet = Packet(Packet::ELECTION_PACKET, 1, 1, my_id.c_str(), my_id.size());
-		election_packet.send_packet(outgoing_socket);
-
-
-
-		cout << "MANDEI PACKET para outgoing socket!!" << endl;
-	}
-
-	//*wait_election = true;
-}
-
-// Recieve incomming election packet and execute ring logic and send outgoing packet.
-void serverComManager::handle_election(int socket) {
-	
-	// ============================= CONNECTING NEXT SERVER TO ONGOING SOCKET ==================================
-	// Conecting to the next backup server, first roundtrip only
-	if(not(this->participant)){
-		struct hostent *server;
-		char self_hostname[256];
-		gethostname(self_hostname, sizeof(self_hostname));
-		ServerNode* next_backup_s = this->server_list->find_next_server(self_hostname);
-		server = gethostbyname(next_backup_s->get_hostname().c_str());
-
-		if (server == NULL) {
-			fprintf(stderr,"ERROR, no such host\n");
-			exit(0);
-		}
-
-		connect_election_sockets(server);
-		int outgoing_socket = this->outgoing_election_socket;	
-
-		this->participant = true;
-	}
-
-	//============================= HANDLING PACKET  ===========================================================
-
-
-	int my_id = this->id;  // Definindo inicialmente o maior identificador
-	int max_id;
-
-	// recieves incoming election packet from previous server
-	Packet received_packet = Packet::receive_packet(socket);
-
-	// Extract the payload
-	std::string received_id = received_packet.get_payload();
-
-	int payload_id = std::stoi(received_id);
-
-
-	// sets to where you send the packet
-	int outgoing_socket = this->outgoing_election_socket;
-
-	// The servers can send two types of messages, either an ELECTION or an ELECTED, id they recieve an ELECTED message, then...
-	if (received_packet.get_type() == Packet::ELECTED_PACKET) {
-		// find the server with the elected id, set it as the elected server
-		if (my_id == payload_id) {
-			cout << "I WAS ELECTED!!" << endl;
-			return;
-		} else {
-			cout << "SOMEONE WAS ELECTED!!!!" << endl;
-			Packet elected_leader_packet = Packet(Packet::ELECTED_PACKET, 1, 1, received_id.c_str(), received_id.size());
-			elected_leader_packet.send_packet(outgoing_socket);
-			return;
-		}
-	}
-
-	if (received_packet.get_type() != Packet::ELECTION_PACKET)
-	{
-		cerr << "ERROR: wrong packet type during election!"<< endl;
-	}
-	
-
-	if (my_id < payload_id){
-		max_id = payload_id;
-	} else if (my_id > payload_id) {
-		if (this->participant) {
-			return;
-		} else {
-			max_id = payload_id; 		
-		}
-	} else if (my_id == payload_id){
-		// this means that the server is the elected one.
-		max_id = max_id;
-	}
-
-
-	std::string string_max_id = std::to_string(max_id);
-	Packet election_packet = Packet(Packet::ELECTION_PACKET, 1, 1, string_max_id.c_str(), string_max_id.size());
-
-	election_packet.send_packet(outgoing_socket);
-
-}

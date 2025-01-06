@@ -142,7 +142,6 @@ int main(int argc, char *argv[])
     	struct hostent *server;
 		char self_hostname[256];
 		bool elected = false;
-    
 		server = gethostbyname(argv[1]);
 		port = atoi(argv[2]);
 		gethostname(self_hostname, sizeof(self_hostname));

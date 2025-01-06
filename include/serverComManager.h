@@ -37,6 +37,7 @@ class serverComManager
         int client_upload_socket= -1;
         int client_fetch_socket = -1;
         //sockets for the election ring
+        int listening_socket = -1;
         int outgoing_election_socket = -1;
         int incoming_election_socket = -1;
         //bool that says if it is participating in the election or not
@@ -83,6 +84,12 @@ class serverComManager
         void accept_election_connection();
         void connect_election_sockets(hostent* backup_server);
         void start_ring_election(bool* wait_election);
-        void handle_election(int socket);
+        void handle_election(bool* wait_election, bool* elected);
+        void build_ring();
+
+        //functions used for evolvin backup server
+        void evolve_into_main();
+        void close_old_connections();
+        
 };
 #endif
