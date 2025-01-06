@@ -18,13 +18,13 @@ class client
 
         void command_input_interface(){
             while(true){
-                cout << "\n\nEscolha uma das opções abaixo:\n";
-                cout << "1. upload <path/filename.ext> - Envia o arquivo para o servidor e sincroniza com os dispositivos.\n";
-                cout << "2. download <filename.ext> - Baixa uma cópia não sincronizada do arquivo do servidor.\n";
-                cout << "3. delete <filename.ext> - Exclui o arquivo do diretório \"sync_dir\" local.\n";
-                cout << "4. list_server - Lista os arquivos salvos no servidor associados ao usuário.\n";
-                cout << "5. list_client - Lista os arquivos salvos no diretório \"sync_dir\" local.\n";
-                cout << "6. exit - Fecha a sessão com o servidor.\n";
+                cout << "\n\nEscolha uma das opções abaixo: " << endl;
+                cout << "1. upload <path/filename.ext> - Envia o arquivo para o servidor e sincroniza com os dispositivos." << endl;
+                cout << "2. download <filename.ext> - Baixa uma cópia não sincronizada do arquivo do servidor." << endl;
+                cout << "3. delete <filename.ext> - Exclui o arquivo do diretório \"sync_dir\" local." << endl;
+                cout << "4. list_server - Lista os arquivos salvos no servidor associados ao usuário." << endl;
+                cout << "5. list_client - Lista os arquivos salvos no diretório \"sync_dir\" local." << endl;
+                cout << "6. exit - Fecha a sessão com o servidor." << endl;
 
                 Command command;
                 int option;
@@ -113,7 +113,7 @@ class client
                         communication_manager.set_sock_upload(second_contact_socket);
                         //cout << "upload socket connected again" << endl;
                         communication_manager.set_sock_fetch(third_contact_socket);
-                        cout << "fetch socket connected again" << endl;
+                        //cout << "fetch socket connected again" << endl;
                     }catch(const std::exception& e){
                         std::cerr << e.what() << endl;
                     }

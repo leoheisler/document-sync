@@ -506,12 +506,13 @@ void serverComManager::heartbeat_protocol(ServerList* server_list){
 		std::this_thread::sleep_for(std::chrono::seconds(5)); 
 		// cout << "sending heartbeat" << endl;
 
+		server_list->display_servers();
 		ServerNode* backup_server = server_list->get_first_server();
 		
 		while(backup_server != nullptr){
 			int server_socket = backup_server->get_socket();
-			Packet* file_path_packet = new Packet(Packet::HEARTBEAT_PACKET, 1, 1, "", 1);
-			file_path_packet->send_packet(server_socket);
+			Packet heartbeat_packet(Packet::HEARTBEAT_PACKET, 1, 1, "", 1);
+			heartbeat_packet.send_packet(server_socket);
 			backup_server = backup_server->get_next();
 		}
 	}
