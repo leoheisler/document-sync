@@ -11,7 +11,6 @@ std::mutex connect_hand_com;
 std::mutex access_device_list;
 std::mutex access_server_list;
 std::mutex access_heartbeat_time;
-bool stop_heartbeat_thread = false;
 
 // CONSTRUCTOR
 serverComManager::serverComManager(ClientList* client_list, ServerList* server_list){ this->client_list = client_list; this->server_list = server_list;};
@@ -499,8 +498,6 @@ void serverComManager::backup_client_list(int socket){
 	HEARTBEAT_PROTOCOL: SEND HEARTBEAT SIGNALS TO BACKUP_SERVERS
 */
 void serverComManager::heartbeat_protocol(ServerList* server_list){
-	std::thread(election_timer);
-
 	while(true){
 		// Propagate heartbeat packet to all backup servers every 5 seconds
 		std::this_thread::sleep_for(std::chrono::seconds(5)); 
@@ -522,6 +519,7 @@ void serverComManager::heartbeat_protocol(ServerList* server_list){
 */
 void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start_election, int socket){
 	time_t current_time;
+	bool stop_heartbeat_thread = false;
 
 	while(!stop_heartbeat_thread){
 		std::this_thread::sleep_for(std::chrono::seconds(6)); 
