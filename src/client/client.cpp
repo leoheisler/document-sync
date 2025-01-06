@@ -10,6 +10,7 @@
 
 using namespace std;
 #define PORT 4008
+
 class client
 {
     private:
@@ -62,6 +63,25 @@ class client
                 throw std::runtime_error("ERRO BINDANDO O SOCKET");
             } 
         }
+        /*
+            THIS FUNCTION BINDS THE CLIENT SOCKET ON PORT 1909, 
+            ENABLING IT TO REVERSE CONNECT
+        
+        */
+        void bind_client_socket(int* listening_socket){
+            struct sockaddr_in cli_addr;
+            if ((*listening_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+                throw std::runtime_error("ERRO ABRINDO O SOCKET");
+            }
+                
+            cli_addr.sin_family = AF_INET;
+            cli_addr.sin_port = htons(PORT);
+            cli_addr.sin_addr.s_addr = INADDR_ANY;
+            bzero(&(cli_addr.sin_zero), 8);     
+            if (bind(*listening_socket, (struct sockaddr *) &cli_addr, sizeof(cli_addr)) < 0){
+                throw std::runtime_error("ERRO BINDANDO O SOCKET");
+            } 
+        }
 
         void upload_to_server()
         {
@@ -80,16 +100,17 @@ class client
         }
 
         /*
-            THIS FUNCTION ACCEPTS ALL CONNECTION ON PORT 1909,
+            THIS FUNCTION ACCEPTS ALL CONNECTION ON PORT 4008,
             it >>WILL<< change the sockets once it listens to 
             >>ANY<< comunnication
+
         */
         void accept_connections(){
             int listening_socket;
             int first_contact_socket, second_contact_socket, third_contact_socket;
             struct sockaddr_in client_address;
             socklen_t client_len = sizeof(struct sockaddr_in);
-            
+
             try{
                 bind_client_socket(&listening_socket);
             }catch(const std::exception& e){
@@ -105,6 +126,7 @@ class client
                     communication_manager.close_sockets();
                     //start new sockets
                     communication_manager.start_sockets();
+
                     try{
                         second_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);
                         third_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);

@@ -15,7 +15,8 @@
 #include <arpa/inet.h>
 #include <iostream>
 #include <filesystem>
-
+#include <mutex>
+#include <map> 
 
 
 #include "commandStatus.h"
@@ -54,6 +55,8 @@ class clientComManager
         void exit_client();
     
     public:
+        std::mutex mutex_upload;
+
         // Constructor Method
         clientComManager();
 
@@ -69,18 +72,21 @@ class clientComManager
         void set_username(std::string username);
         std::string get_hostname();
         void set_hostname(std::string hostname);
-
-
         void send_delete_request(std::string file_name);
+  
         // this will recieve either an success response or an error, print message representing status 
         bool get_response();
-        // Setclient file handler
+  
+        // Set client file handler
         void set_file_manager(clientFileManager* fm); 
         void set_sock_cmd(int sock_cmd);
         void set_sock_upload(int sock_upload);
         void set_sock_fetch(int sock_fetch);
         void start_sockets();
         void close_sockets();
+
+        void close_sockets();
+
 
 };
 #endif
