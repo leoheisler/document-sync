@@ -9,7 +9,7 @@
 #include "packet.h"
 
 using namespace std;
-#define PORT 1909
+#define PORT 4008
 
 class client
 {
@@ -19,13 +19,13 @@ class client
 
         void command_input_interface(){
             while(true){
-                cout << "\n\nEscolha uma das opções abaixo:\n";
-                cout << "1. upload <path/filename.ext> - Envia o arquivo para o servidor e sincroniza com os dispositivos.\n";
-                cout << "2. download <filename.ext> - Baixa uma cópia não sincronizada do arquivo do servidor.\n";
-                cout << "3. delete <filename.ext> - Exclui o arquivo do diretório \"sync_dir\" local.\n";
-                cout << "4. list_server - Lista os arquivos salvos no servidor associados ao usuário.\n";
-                cout << "5. list_client - Lista os arquivos salvos no diretório \"sync_dir\" local.\n";
-                cout << "6. exit - Fecha a sessão com o servidor.\n";
+                cout << "\n\nEscolha uma das opções abaixo: " << endl;
+                cout << "1. upload <path/filename.ext> - Envia o arquivo para o servidor e sincroniza com os dispositivos." << endl;
+                cout << "2. download <filename.ext> - Baixa uma cópia não sincronizada do arquivo do servidor." << endl;
+                cout << "3. delete <filename.ext> - Exclui o arquivo do diretório \"sync_dir\" local." << endl;
+                cout << "4. list_server - Lista os arquivos salvos no servidor associados ao usuário." << endl;
+                cout << "5. list_client - Lista os arquivos salvos no diretório \"sync_dir\" local." << endl;
+                cout << "6. exit - Fecha a sessão com o servidor." << endl;
 
                 Command command;
                 int option;
@@ -42,7 +42,26 @@ class client
                     default: command = Command::NO_COMMAND; break;
                 }
                 communication_manager.execute_command(command);
+                communication_manager.get_response();
             }
+        }
+        /*
+            THIS FUNCTION BINDS THE LISTENING SOCKET FOR REVERSE CONNECTION
+
+        */
+        void bind_client_socket(int* listening_socket){
+            struct sockaddr_in cli_addr;
+            if ((*listening_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+                throw std::runtime_error("ERRO ABRINDO O SOCKET");
+            }
+                
+            cli_addr.sin_family = AF_INET;
+            cli_addr.sin_port = htons(PORT);
+            cli_addr.sin_addr.s_addr = INADDR_ANY;
+            bzero(&(cli_addr.sin_zero), 8);     
+            if (bind(*listening_socket, (struct sockaddr *) &cli_addr, sizeof(cli_addr)) < 0){
+                throw std::runtime_error("ERRO BINDANDO O SOCKET");
+            } 
         }
         /*
             THIS FUNCTION BINDS THE CLIENT SOCKET ON PORT 1909, 
@@ -81,16 +100,17 @@ class client
         }
 
         /*
-            THIS FUNCTION SETS THE LISTENING SOCKET AND,
-            >>EVERYTIME<< IT SENSES A CONNECTION IT >>WILL<<
-            CHANGE SOCKETS
-        
+            THIS FUNCTION ACCEPTS ALL CONNECTION ON PORT 4008,
+            it >>WILL<< change the sockets once it listens to 
+            >>ANY<< comunnication
+
         */
         void accept_connections(){
             int listening_socket;
             int first_contact_socket, second_contact_socket, third_contact_socket;
             struct sockaddr_in client_address;
             socklen_t client_len = sizeof(struct sockaddr_in);
+
             try{
                 bind_client_socket(&listening_socket);
             }catch(const std::exception& e){
@@ -102,15 +122,23 @@ class client
             while(true){
                 first_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);
                 if(first_contact_socket >= 0){
+                    //close old communications
                     communication_manager.close_sockets();
+                    //start new sockets
+                    communication_manager.start_sockets();
+
                     try{
                         second_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);
                         third_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);
                         communication_manager.set_sock_cmd(first_contact_socket);
+                        //cout << "cmd socket connected again" << endl;
                         communication_manager.set_sock_upload(second_contact_socket);
+                        //cout << "upload socket connected again" << endl;
                         communication_manager.set_sock_fetch(third_contact_socket);
+                        //cout << "fetch socket connected again" << endl;
+                        file_manager->set_sockets(first_contact_socket, second_contact_socket, third_contact_socket);
                     }catch(const std::exception& e){
-                        std::cerr << e.what() << '\n';
+                        std::cerr << e.what() << endl;
                     }
                 }
             }
@@ -132,7 +160,6 @@ class client
             thread upload_thread(&client::upload_to_server,this);
             thread download_thread(&client::download_from_server,this);
             thread accept_thread(&client::accept_connections,this);
-
 
             // wait for all threads to finish so main can finish
             command_thread.join();

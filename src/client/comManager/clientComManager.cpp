@@ -24,12 +24,10 @@ void clientComManager::start_sockets()
     if ((this->sock_fetch = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
         cout << "ERROR opening fetch socket\n";
     
-                    
 }
 
 void clientComManager::connect_sockets(int port, hostent* server)
 {
-
     struct sockaddr_in serv_addr;
 
     serv_addr.sin_family = AF_INET;     
@@ -39,22 +37,25 @@ void clientComManager::connect_sockets(int port, hostent* server)
 
     if (connect(this->sock_cmd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
         cout << "ERROR connecting cmd socket\n";
-    else
-        cout <<"cmd socket connected\n";
+    else{}
+        //cout <<"cmd socket connected\n";
 
     Packet handshake_packet = Packet::receive_packet(this->sock_cmd);
     if(handshake_packet.get_type() == Packet::COMM_PACKET){
         if (connect(this->sock_upload,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
             cout << "ERROR connecting upload socket\n";
-        else
-            cout <<"upload socket connected\n";
+        else{}
+            //cout <<"upload socket connected\n";
 
         if (connect(this->sock_fetch,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
             cout << "ERROR connecting fetch socket\n";
-        else
-            cout <<"fetch socket connected\n";
-
+        else{}
+            //cout <<"fetch socket connected\n";
     }
+
+    // Send packet to communicate to main server that it is a client
+    Packet ack_packet(Packet::COMM_PACKET, 1, 1, "", 0);
+    ack_packet.send_packet(this->sock_cmd);
 }
 
 void clientComManager::close_sockets()
@@ -62,7 +63,7 @@ void clientComManager::close_sockets()
     close(this->sock_cmd);
     close(this->sock_fetch);
     close(this->sock_upload);
-    cout << "All sockets closed,";
+    //cout << "All sockets closed,";
 }
 
 void clientComManager::upload()
@@ -200,7 +201,7 @@ void clientComManager::get_sync_dir()
     //first erase everything that was in clint sync_dir, we dont want other clients files in new clients directory
     cout << this->file_manager->erase_dir("../src/client/sync_dir") << endl;
     // Send packet signaling server to execute get_sync_dir with client info (username and socket)
-    string client_info = (get_username() + "\n" + to_string(this->sock_cmd));
+    string client_info = (get_username() + "\n" + get_hostname() + "\n");
     Packet get_sync_command = Packet(Packet::CMD_PACKET, Command::GET_SYNC_DIR, 1, client_info.c_str(), client_info.length());
     get_sync_command.send_packet(this->sock_cmd);
 }
@@ -234,7 +235,7 @@ void clientComManager::receive_sync_dir_files()
             payload_stream >> total_paths && 
             payload_stream >> index) {
             // Log received information
-            std::cout << "Received path: " << path << " (Index " << index << " of " << total_paths << ")" << std::endl;
+            // std::cout << "Received path: " << path << " (Index " << index << " of " << total_paths << ")" << std::endl;
 
             size_t last_slash = path.find_last_of("/\\");
             std::string filename = (last_slash != std::string::npos) ? path.substr(last_slash) : path;
@@ -243,12 +244,12 @@ void clientComManager::receive_sync_dir_files()
             this->file_manager->add_path(filename);
 
             // Receive the file using the extracted path
-            cout << "will store at: ../src/client/sync_dir" + filename << endl;
+            // cout << "will store at: ../src/client/sync_dir" + filename << endl;
             FileTransfer::receive_file("../src/client/sync_dir" + filename, client_socket);
 
             // Check if all paths are received
             if (index + 1 == total_paths) {
-                std::cout << "All files received." << std::endl;
+                // std::cout << "All files received." << std::endl;
                 break;
                 return;
             }
@@ -311,8 +312,11 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
 {
     int  port;
     struct hostent *server;
+    char self_hostname[256];
+    gethostname(self_hostname, sizeof(self_hostname));
     
 	set_username(argv[1]);
+    set_hostname(self_hostname);
 	server = gethostbyname(argv[2]);
     port = atoi(argv[3]);
 
@@ -330,6 +334,23 @@ int clientComManager::connect_client_to_server(int argc, char* argv[])
     this->file_manager->set_sockets(this->sock_cmd, this->sock_upload, this->sock_fetch);
 
     return 0;
+}
+
+bool clientComManager::get_response() {
+    // Wait for the server's response
+    Packet received_message = Packet::receive_packet(this->sock_cmd);
+
+    // Check the type of the packet to determine the response
+    if (received_message.get_type() == Packet::SUCCESS) {
+        std::cout << "All good.\n";
+        return true;
+    } else if (received_message.get_type() == Packet::ERR) {
+        std::cerr << "Error processing request.\n";
+        return false;
+    } else {
+        std::cerr << "Unexpected error processing request.\n" << received_message.get_type() << std::endl;
+        return false;
+    }
 }
 
 void clientComManager::await_sync()
@@ -360,6 +381,8 @@ void clientComManager::await_sync()
 // GETTERS & SETTERS
 std::string clientComManager::get_username(){ return this->username; }
 void clientComManager::set_username(std::string username){ this->username = username; }
+std::string clientComManager::get_hostname(){ return this->hostname; }
+void clientComManager::set_hostname(std::string hostname){ this->hostname = hostname; }
 void clientComManager::set_sock_cmd(int sock_cmd){this->sock_cmd = sock_cmd;}
 void clientComManager::set_sock_upload(int sock_upload){this->sock_upload = sock_upload;}
 void clientComManager::set_sock_fetch(int sock_fetch){this->sock_fetch = sock_fetch;}

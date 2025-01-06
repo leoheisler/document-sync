@@ -4,10 +4,12 @@
 #include "packet.h"
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 
 class FileTransfer {
     public:
         static void send_file(const std::string& file_path, int socket) {
+
             ifstream file(file_path, std::ios::binary | std::ios::ate);
 
             // File initialization
@@ -42,8 +44,19 @@ class FileTransfer {
         }
 
         static void receive_file(const std::string& output_path, int socket) {
+            // Ensure the directory exists
+            std::filesystem::path dir = std::filesystem::path(output_path).parent_path();
+            if (!std::filesystem::exists(dir)) {
+                if (!std::filesystem::create_directories(dir)) {
+                    std::cerr << "Error: Cannot create directory" << dir << std::endl;
+                    return;
+                }
+            }
+            // std::cout << "*" << std::endl;
+
             std::ofstream file(output_path, std::ios::binary);
             
+            // std::cout << "**" << std::endl;
             // File initialization
             if (!file.is_open()) {
                 cerr << "Error: Cannot create file " << output_path << std::endl;
@@ -52,9 +65,10 @@ class FileTransfer {
 
             uint32_t total_packets = 0;
             uint16_t seq_num = 0;
-
+            // std::cout << "***" << std::endl;
             // Receiving file in fragments of MAX_PAYLOAD_SIZE bytes
-            while (true) {         
+            while (true) { 
+                // std::cout << "****" << std::endl;       
                 Packet packet = Packet::receive_packet(socket);
                 if (packet.type == Packet::ERR) 
                 {
@@ -64,7 +78,7 @@ class FileTransfer {
                     return;
                 }
                 total_packets = packet.total_size; 
-
+                // std::cout << total_packets << std::endl;     
                 // Write the received payload to the file
                 file.write(packet.get_payload(), packet.get_length());
 
@@ -72,7 +86,7 @@ class FileTransfer {
                 // Check for end-of-transmission signal 
                 if (seq_num == total_packets) {
                     //cout << "Received end of transmission packet from client" << std::endl;
-                    break; 
+                    break;
                 }
             }
 

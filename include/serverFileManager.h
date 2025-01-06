@@ -21,6 +21,8 @@ class serverFileManager
 
         // Function to retrieve all paths inside user synchronized directory
         static std::vector<std::string> get_sync_dir_paths(const std::string& username);
+        static std::vector<std::string> get_sync_dir_files_in_directory(const std::string& directory_path);
+        static void receive_sync_dir_files(int socket);
         static std::string delete_file(std::string file_path);
 };  
 #endif

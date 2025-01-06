@@ -28,7 +28,16 @@ class Packet {
             ERR = 0x0000,
             DATA_PACKET = 0x0001,
             CMD_PACKET = 0x0002,
-            COMM_PACKET = 0x0003
+            COMM_PACKET = 0x0003,
+            CLIENTINFO_PACKET = 0x0004,
+            DELETEDEVICE_PACKET = 0x0005,
+            SERVERINFO_PACKET = 0x0006,
+            DELETESERVER_PACKET = 0x0007,
+            HEARTBEAT_PACKET = 0x0008,
+            ELECTION_PACKET = 0x0009,
+            EOT_PACKET = 0x000A,
+            SUCCESS = 0x000B,
+            ELECTED_PACKET = 0x000C
         };
 
         // Constant for total packet size in bytes
@@ -83,31 +92,57 @@ class Packet {
             return;
         }
 
-        static Packet receive_packet(int socket) {
+        // the timeout is important for some applications but should not influence any others, thats why the large default.
+        static Packet receive_packet(int socket, int timeout_seconds = 10000000) {
+            fd_set read_fds;
+            struct timeval timeout;
+            timeout.tv_sec = timeout_seconds;
+            timeout.tv_usec = 0;
+
+            FD_ZERO(&read_fds);
+            FD_SET(socket, &read_fds);
+
+            // Wait for data to become available on the socket
+            int select_result = select(socket + 1, &read_fds, nullptr, nullptr, &timeout);
+            if (select_result < 0) {
+                // std::cerr << "Error: select failed." << endl;
+                return Packet(); // Return empty packet on error
+            } else if (select_result == 0) {
+                // std::cerr << "Warning: receive_packet timed out after " << timeout_seconds << " seconds." << endl;
+                return Packet(); // Return empty packet on timeout
+            }
+
+            // If data is available, proceed with receiving it
             uint16_t type, seqn, length;
             uint32_t total_size;
             char payload[MAX_PAYLOAD_SIZE];
-            
-            // Allocate memory for receiving the full packet
+
             char* stream = (char*)malloc(PACKET_SIZE);
             if (!stream) {
-                printf("Error: Failed to allocate memory for receiving packet.\n");
+                std::cerr << "Error: Failed to allocate memory for receiving packet."<< endl;
                 return Packet();
             }
 
-            // Receiving the stream (packet headers and data) from the specified socket
-            long int bytes_received, total_bytes_received = 0;
+            ssize_t bytes_received, total_bytes_received = 0;
             do {
                 bytes_received = read(socket, stream + total_bytes_received, PACKET_SIZE - total_bytes_received);
                 if (bytes_received < 0) {
-                    printf("Error receiving packet.\n");
-                    free(stream); 
-                    return Packet(); 
-                } 
+                    //std::cerr << "Error: Failed to read from socket." << endl;
+                    free(stream);
+                    return Packet();
+                }
+                /*
+                else if (bytes_received == 0){
+                    std::cerr << "Close socket cause length 0<< endl
+                    free(stream);
+                    close(socket); // Close the socket on read error
+                    return Packet();
+                }
+                */
                 total_bytes_received += bytes_received;
-            }while(total_bytes_received < PACKET_SIZE);
+            } while (total_bytes_received < PACKET_SIZE);
 
-            // Remounting Packet from stream data
+            // Deserialize the packet
             size_t offset = 0;
             memcpy(&type, stream + offset, sizeof(type));
             offset += sizeof(type);
@@ -118,21 +153,17 @@ class Packet {
             memcpy(&length, stream + offset, sizeof(length));
             offset += sizeof(length);
 
-            // Ensure length is within bounds to prevent buffer overflow
             if (length > MAX_PAYLOAD_SIZE) {
-                printf("Error: Payload length %d exceeds maximum allowed size %d.\n", length, MAX_PAYLOAD_SIZE);
+                std::cerr << "Error: Payload length exceeds maximum allowed size." << endl;
                 free(stream);
-                return Packet(); // Return empty packet if length is invalid
+                return Packet();
             }
-            memcpy(payload, stream + offset, length);            
+            memcpy(payload, stream + offset, length);
 
-            Packet packet(type, seqn, total_size, payload, length);
-            //printf("Packet length received: %d\n", packet.getLength());
-
-            free(stream); // Free allocated memory after use
-
-            return packet;
+            free(stream);
+            return Packet(type, seqn, total_size, payload, length);
         }
+
 
 
         // Getters & Setters
@@ -150,6 +181,10 @@ class Packet {
 
         char* get_payload(){
             return _payload;
+        }
+
+        bool is_empty() const {
+            return type == ERR; // ERR indicates an empty or invalid packet
         }
 
         void clear() {

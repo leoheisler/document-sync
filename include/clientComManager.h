@@ -27,6 +27,7 @@ class clientComManager
 {
     private: 
         std::string username;
+        std::string hostname;
         int sock_cmd = -1;
         int sock_upload = -1;
         int sock_fetch = -1;
@@ -35,10 +36,9 @@ class clientComManager
         clientFileManager* file_manager = nullptr;
 
         //Sockets
-        void start_sockets();
         void connect_sockets(int port, hostent* server);
-        void close_sockets();
-
+        
+        
         //sync_dir funcs
         void get_sync_dir();
         void receive_sync_dir_files();
@@ -70,13 +70,20 @@ class clientComManager
         // Getters & Setters
         std::string get_username();
         void set_username(std::string username);
+        std::string get_hostname();
+        void set_hostname(std::string hostname);
         void send_delete_request(std::string file_name);
+  
+        // this will recieve either an success response or an error, print message representing status 
+        bool get_response();
+  
+        // Set client file handler
+        void set_file_manager(clientFileManager* fm); 
         void set_sock_cmd(int sock_cmd);
         void set_sock_upload(int sock_upload);
         void set_sock_fetch(int sock_fetch);
-
-        // Set client file handler
-        void set_file_manager(clientFileManager* fm); 
+        void start_sockets();
+        void close_sockets();
 
         void close_sockets();
 
