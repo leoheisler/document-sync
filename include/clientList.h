@@ -227,14 +227,14 @@ class ClientList {
                 current = current->get_next();  // Move to the next node
             }
             // If the username is not found
-            cout << "CLIENT NOT FOUND";
+            // cout << "CLIENT NOT FOUND";
             return nullptr;
         }
 
         // Display all clients in the list (for debugging)
         void display_clients() const {
             ClientNode* current = head;
-            cout << endl;
+            // cout << endl;
             while (current != nullptr) {
                 current->display();
                 current = current->get_next();

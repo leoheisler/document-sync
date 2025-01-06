@@ -32,11 +32,12 @@ class Packet {
             CLIENTINFO_PACKET = 0x0004,
             DELETEDEVICE_PACKET = 0x0005,
             SERVERINFO_PACKET = 0x0006,
-            HEARTBEAT_PACKET = 0x0007,
-            ELECTION_PACKET = 0x0008,
-            EOT_PACKET = 0x0009,
-            SUCCESS = 0x000A,
-            ELECTED_PACKET = 0x000B
+            DELETESERVER_PACKET = 0x0007,
+            HEARTBEAT_PACKET = 0x0008,
+            ELECTION_PACKET = 0x0009,
+            EOT_PACKET = 0x000A,
+            SUCCESS = 0x000B,
+            ELECTED_PACKET = 0x000C
         };
 
         // Constant for total packet size in bytes
@@ -104,10 +105,10 @@ class Packet {
             // Wait for data to become available on the socket
             int select_result = select(socket + 1, &read_fds, nullptr, nullptr, &timeout);
             if (select_result < 0) {
-                std::cerr << "Error: select failed.\n";
+                // std::cerr << "Error: select failed." << endl;
                 return Packet(); // Return empty packet on error
             } else if (select_result == 0) {
-                std::cerr << "Warning: receive_packet timed out after " << timeout_seconds << " seconds.\n";
+                // std::cerr << "Warning: receive_packet timed out after " << timeout_seconds << " seconds." << endl;
                 return Packet(); // Return empty packet on timeout
             }
 
@@ -118,7 +119,7 @@ class Packet {
 
             char* stream = (char*)malloc(PACKET_SIZE);
             if (!stream) {
-                std::cerr << "Error: Failed to allocate memory for receiving packet.\n";
+                std::cerr << "Error: Failed to allocate memory for receiving packet."<< endl;
                 return Packet();
             }
 
@@ -126,13 +127,13 @@ class Packet {
             do {
                 bytes_received = read(socket, stream + total_bytes_received, PACKET_SIZE - total_bytes_received);
                 if (bytes_received < 0) {
-                    std::cerr << "Error: Failed to read from socket.\n";
+                    std::cerr << "Error: Failed to read from socket." << endl;
                     free(stream);
                     return Packet();
                 }
                 /*
                 else if (bytes_received == 0){
-                    std::cerr << "Close socket cause length 0\n";
+                    std::cerr << "Close socket cause length 0<< endl
                     free(stream);
                     close(socket); // Close the socket on read error
                     return Packet();
@@ -153,7 +154,7 @@ class Packet {
             offset += sizeof(length);
 
             if (length > MAX_PAYLOAD_SIZE) {
-                std::cerr << "Error: Payload length exceeds maximum allowed size.\n";
+                std::cerr << "Error: Payload length exceeds maximum allowed size." << endl;
                 free(stream);
                 return Packet();
             }

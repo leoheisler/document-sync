@@ -109,21 +109,14 @@ class client
                         second_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);
                         third_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);
                         communication_manager.set_sock_cmd(first_contact_socket);
-                        cout << "cmd socket connected again" <<endl;
+                        cout << "cmd socket connected again" << endl;
                         communication_manager.set_sock_upload(second_contact_socket);
-                        cout << "upload socket connected again" <<endl;
+                        cout << "upload socket connected again" << endl;
                         communication_manager.set_sock_fetch(third_contact_socket);
-                        cout << "fetch socket connected again" <<endl;
+                        cout << "fetch socket connected again" << endl;
                     }catch(const std::exception& e){
-                        std::cerr << e.what() << '\n';
+                        std::cerr << e.what() << endl;
                     }
-                    cout << "\n\nEscolha uma das opções abaixo:\n";
-                    cout << "1. upload <path/filename.ext> - Envia o arquivo para o servidor e sincroniza com os dispositivos.\n";
-                    cout << "2. download <filename.ext> - Baixa uma cópia não sincronizada do arquivo do servidor.\n";
-                    cout << "3. delete <filename.ext> - Exclui o arquivo do diretório \"sync_dir\" local.\n";
-                    cout << "4. list_server - Lista os arquivos salvos no servidor associados ao usuário.\n";
-                    cout << "5. list_client - Lista os arquivos salvos no diretório \"sync_dir\" local.\n";
-                    cout << "6. exit - Fecha a sessão com o servidor.\n";
                 }
             }
         }

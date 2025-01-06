@@ -79,6 +79,29 @@ class ServerList {
             std::cout << "SERVER NOT FOUND" << std::endl;
         }
 
+        // Method to remove a server by its hostname
+        void remove_server(string hostname) {
+            ServerNode* current = head;
+            ServerNode* prev = nullptr;
+
+            while (current != nullptr) {
+                if (current->get_hostname() == hostname) {
+                    // Found the server to remove
+                    if (prev == nullptr) {  // Removing the first node
+                        head = current->get_next();
+                    } else {  // Removing an intermediate or last node
+                        prev->set_next(current->get_next());
+                    }
+                    delete current;  // Free the memory
+                    return;
+                }
+                prev = current;
+                current = current->get_next();
+            }
+
+            std::cout << "SERVER NOT FOUND" << std::endl;
+        }
+
         // Method to return the first server of the list
         ServerNode* get_first_server() const {
             return head;

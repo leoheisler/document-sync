@@ -9,7 +9,6 @@ namespace fs = std::filesystem;
 std::mutex access_device_list;
 std::mutex access_server_list;
 std::mutex access_heartbeat_time;
-std::mutex stop_heartbeat_mutex;
 bool stop_heartbeat_thread = false;
 
 // CONSTRUCTOR
@@ -110,7 +109,7 @@ void serverComManager::await_command_packet() {
 	bool exit = false;
 	while(!exit) {
 		// Wait to receive a command packet from client
-		Packet command_packet = Packet::receive_packet(this->client_cmd_socket, 15);
+		Packet command_packet = Packet::receive_packet(this->client_cmd_socket);
 
 		// Determine what to do based on the command packet received
 		switch(command_packet.get_seqn()){
@@ -558,7 +557,7 @@ void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start
 				BACKUP_SERVER SETTING
 ==================================================
 */
-// RECIEVE SERVER_LIST FROM MAIN SERVER
+// RECEIVE SERVER_LIST FROM MAIN SERVER
 void serverComManager::receive_server_list(int socket){
 	access_server_list.lock();
 		Packet server_list_infos = Packet::receive_packet(socket);
@@ -578,7 +577,7 @@ void serverComManager::receive_server_list(int socket){
 		this->server_list->display_servers();
 	access_server_list.unlock();
 }
-// RECIEVE CLIENT LIST FROM MAIN SERVER
+// RECEIVE CLIENT LIST FROM MAIN SERVER
 void serverComManager::receive_client_list(int socket) {
     access_device_list.lock();
     {
@@ -634,112 +633,113 @@ void serverComManager::await_sync(int socket, bool* elected) {
 			start_ring_election(&wait_election);
 			should_start_election = false;
 			wait_election = true;
-			// Lock the mutex and set stop_heartbeat_thread to true to stop the timer thread
-            {
-                std::lock_guard<std::mutex> lock(stop_heartbeat_mutex);
-                stop_heartbeat_thread = true;
-            }
 		}
 		if(wait_election){
 			handle_election(&wait_election, elected);
 		}
 		if(!wait_election)
 		{
-
 			// wait for only 15 seconds, timeout is important to unblock this thread
 			Packet received_packet = Packet::receive_packet(socket, 15);
 
 			if (received_packet.is_empty()) {
-				std::cout << "No packet received within timeout period.\n";
-				continue;
+				std::cout << "No packet received within timeout period." << endl;
+			}else{
+				access_heartbeat_time.lock();
+				{
+					last_heartbeat = time(NULL);
+				}
+				access_heartbeat_time.unlock();
+
+				switch(received_packet.get_type()){
+					// CMD_PACKET == DELETE SYNC
+					case Packet::CMD_PACKET:
+					{
+						string file_path = strtok(received_packet.get_payload(), "\n");        
+						serverFileManager::delete_file(file_path);
+						break;
+					}
+
+					// DATA_PACKET == DOWNLOAD SYNC
+					case Packet::DATA_PACKET:
+					{
+						string file_path = strtok(received_packet.get_payload(), "\n");        
+						FileTransfer::receive_file(file_path, socket);	
+						break;
+					}
+
+					// CLIENTINFO_PACKET == ADD NEW CLIENT DEVICE TO CLIENT LIST
+					case Packet::CLIENTINFO_PACKET:
+					{
+						string client_username = strtok(received_packet.get_payload(), "\n");
+						string client_hostname = strtok(nullptr, "\n");
+						this->client_list->add_device(client_username, client_hostname, tuple<int,int,int>(0,0,0));
+						this->client_list->display_clients();
+						break;
+					}
+
+					// DELETEDEVICE_PACKET == REMOVE CLIENT DEVICE FROM CLIENT LIST
+					case Packet::DELETEDEVICE_PACKET:
+					{
+						string client_username = strtok(received_packet.get_payload(), "\n");
+						string client_hostname = strtok(nullptr, "\n");
+						this->client_list->remove_device(client_username, client_hostname);
+						this->client_list->display_clients();
+						break;
+					}
+
+					// SERVERINFO_PACKET == ADD NEW BACKUP SERVER TO SERVER LIST
+					case Packet::SERVERINFO_PACKET:
+					{
+						string server_hostname = strtok(received_packet.get_payload(), "\n");
+						this->server_list->add_server(0, server_hostname);
+						this->server_list->display_servers();
+						break;
+					}
+
+					// DELETESERVER_PACKET == DELETE BACKUP SERVER FROM SERVER LIST
+					case Packet::DELETESERVER_PACKET:
+					{
+						string server_hostname = strtok(received_packet.get_payload(), "\n");
+						this->server_list->remove_server(server_hostname);
+						this->server_list->display_servers();
+						break;
+					}
+
+					// HEARTBEAT_PACKET == MAIN SERVER HEARTBEAT
+					case Packet::HEARTBEAT_PACKET:
+					{
+						//cout << "received heartbeat..." << endl;
+						break;
+					}
+				}
 			}
 
 			//cout << 'received_packet: ' << endl;
-			
-			access_heartbeat_time.lock();
-			{
-				last_heartbeat = time(NULL);
-			}
-			access_heartbeat_time.unlock();
 
-			switch(received_packet.get_type()){
-				// CMD_PACKET == DELETE SYNC
-				case Packet::CMD_PACKET:
-				{
-					string file_path = strtok(received_packet.get_payload(), "\n");        
-					serverFileManager::delete_file(file_path);
-					break;
-				}
-
-				// DATA_PACKET == DOWNLOAD SYNC
-				case Packet::DATA_PACKET:
-				{
-					string file_path = strtok(received_packet.get_payload(), "\n");        
-					FileTransfer::receive_file(file_path, socket);	
-					break;
-				}
-
-				// CLIENTINFO_PACKET == CLIENT LIST SYNC
-				case Packet::CLIENTINFO_PACKET:
-				{
-					string client_username = strtok(received_packet.get_payload(), "\n");
-					string client_hostname = strtok(nullptr, "\n");
-					this->client_list->add_device(client_username, client_hostname, tuple<int,int,int>(0,0,0));
-					this->client_list->display_clients();
-					break;
-				}
-
-				case Packet::DELETEDEVICE_PACKET:
-				{
-					string client_username = strtok(received_packet.get_payload(), "\n");
-					string client_hostname = strtok(nullptr, "\n");
-					this->client_list->remove_device(client_username, client_hostname);
-					this->client_list->display_clients();
-					break;
-				}
-
-				// SERVERINFO_PACKET == BACKUP SERVER LIST SYNC
-				case Packet::SERVERINFO_PACKET:
-				{
-					string server_hostname = strtok(received_packet.get_payload(), "\n");
-					this->server_list->add_server(0, server_hostname);
-					this->server_list->display_servers();
-					break;
-				}
-
-				// HEARTBEAT_PACKET == MAIN SERVER HEARTBEAT
-				case Packet::HEARTBEAT_PACKET:
-				{
-					//cout << "received heartbeat..." << endl;
-					break;
-				}
-			}
 		}
 	}
 }
-
-
-
 
 /*
 ====================================================================================================
                            				ELECTION FUNCTIONS
 ====================================================================================================
 */
-// start sockets to create the ring
+// Start sockets to create the ring
 void serverComManager::start_election_sockets() {
 	//listening_socket used by backup server to connect to the next backup server in the ring
     if ((this->listening_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-        cout << "ERROR opening listening_socket\n";
-
+        cout << "ERROR opening listening_socket" << endl;
 	//outgoing_election_socket used by backup server to connect to the next backup server in the ring
     if ((this->outgoing_election_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-        cout << "ERROR opening outgoing_election_socket\n";
+        cout << "ERROR opening outgoing_election_socket" << endl;;
 
-	cout << "startei election sockets\n";
+	cout << "startei election sockets" << endl;
   
 }
-// bind de election ring sockets
+
+// Bind de election ring sockets
 void serverComManager::bind_incoming_election_socket(){
 	struct sockaddr_in cli_addr;
 	cli_addr.sin_family = AF_INET;
@@ -750,10 +750,10 @@ void serverComManager::bind_incoming_election_socket(){
 		throw std::runtime_error("ERRO BINDANDO O LISTENING SOCKET");
 	}
 
-	cout << "bindei incoming election socket\n"; 
+	cout << "bindei incoming election socket" << endl;; 
 
 	
-	//Setting the ID for the election
+	// Setting the ID for the election
 	char self_hostname[256];
 	gethostname(self_hostname, sizeof(self_hostname));
 
@@ -761,8 +761,6 @@ void serverComManager::bind_incoming_election_socket(){
 
 	cout << "MINHA ID EH:" << this->id << endl ;
 }
-
-
 
 //send ring connection and wait for a link
 void serverComManager::build_ring(){
@@ -781,9 +779,7 @@ void serverComManager::build_ring(){
 
 	connect_election_sockets(server);
 
-	while( this->incoming_election_socket == -1){
-
-	}
+	while( this->incoming_election_socket == -1){}
 }
 // send connection
 void serverComManager::connect_election_sockets(hostent* backup_server) {
@@ -795,11 +791,12 @@ void serverComManager::connect_election_sockets(hostent* backup_server) {
 	bzero(&(serv_addr.sin_zero), 8);  
 
 	if (connect(this->outgoing_election_socket,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-		cout << "ERROR connecting outgoing_election_socket\n";
-	else
-		cout <<"outgoing_election_socket connected\n";
+		cout << "ERROR connecting outgoing_election_socket" << endl;
+	else{}
+		// cout << "outgoing_election_socket connected" << endl;
 
 }
+
 // accepts ring connections
 void serverComManager::accept_election_connection(){
 	int listening_socket;
@@ -807,12 +804,10 @@ void serverComManager::accept_election_connection(){
 	struct sockaddr_in previous_backup_address;
     socklen_t previous_backup_len = sizeof(struct sockaddr_in);
 
-	
 	listen(this->listening_socket, 1);
 
-	
 	this->incoming_election_socket = accept(this->listening_socket,(struct sockaddr*)&previous_backup_address,&previous_backup_len);
-	cout << "incoming election connection accepted" <<endl;
+	// cout << "incoming election connection accepted" << endl;
 }
 
 void serverComManager::start_ring_election(bool* wait_election) {
@@ -827,19 +822,15 @@ void serverComManager::start_ring_election(bool* wait_election) {
 
 		this->participant = true;
 
-
-		cout << "MANDEI PACKET para outgoing socket!!" << endl;
-	}
-	
+		// cout << "MANDEI PACKET para outgoing socket!!" << endl;
+	}	
 }
 
-
-// Recieve incomming election packet and execute ring logic and send outgoing packet.
+// Receive incomming election packet and execute ring logic and send outgoing packet.
 void serverComManager::handle_election(bool* wait_election, bool* elected) {
 	
 	this->participant = true;
 	//====================== HANDLING PACKET  ====================
-
 
 	int my_id = this->id;  // Definindo inicialmente o maior identificador
 	int max_id;
@@ -850,26 +841,24 @@ void serverComManager::handle_election(bool* wait_election, bool* elected) {
 	// Extract the payload
 	std::string received_id = strtok(received_packet.get_payload(), "\n");
 
-	cout << "RECEBI UM PACOTE Q DENTRO TINHA:" << received_id << endl;
+	// cout << "RECEBI UM PACOTE Q DENTRO TINHA:" << received_id << endl;
 
 	int payload_id = std::stoi(received_id);
 
-
-	// sets to where you send the packet
+	// Sets to where you send the packet
 	int outgoing_socket = this->outgoing_election_socket;
 
 	// The servers can send two types of messages, either an ELECTION or an ELECTED, id they recieve an ELECTED message, then...
 	if (received_packet.get_type() == Packet::ELECTED_PACKET) {
-		// find the server with the elected id, set it as the elected server
+		// Find the server with the elected id, set it as the elected server
 		if (my_id == payload_id) {
-			cout << "I WAS ELECTED!!" << endl;
-			*wait_election = false;
+			// cout << "I WAS ELECTED!!" << endl;
 			*elected =true;
 			close_old_connections();
 			evolve_into_main();
 			return;
 		} else {
-			cout << "SOMEONE WAS ELECTED!!!!" << endl;
+			// cout << "SOMEONE WAS ELECTED!!!!" << endl;
 			*wait_election = false;
 			Packet elected_leader_packet = Packet(Packet::ELECTED_PACKET, 1, 1, received_id.c_str(), received_id.size());
 			elected_leader_packet.send_packet(outgoing_socket);
@@ -883,7 +872,6 @@ void serverComManager::handle_election(bool* wait_election, bool* elected) {
 		cerr << "ERROR: wrong packet type during election!"<< endl;
 	}
 	
-
 	if (my_id < payload_id){
 		max_id = payload_id;
 	} else if (my_id > payload_id) {
@@ -893,7 +881,7 @@ void serverComManager::handle_election(bool* wait_election, bool* elected) {
 			max_id = payload_id; 		
 		}
 	} else if (my_id == payload_id){
-		// this means that the server is the elected one.
+		// This means that the server is the elected one.
 		cout << "KENJI WAS ELECTED!!!!" << endl;
 		Packet elected_leader_packet = Packet(Packet::ELECTED_PACKET, 1, 1, received_id.c_str(), received_id.size());
 		elected_leader_packet.send_packet(outgoing_socket);
@@ -901,18 +889,18 @@ void serverComManager::handle_election(bool* wait_election, bool* elected) {
 		
 	}
 
-
-	//here is the election packet
+	// Here is the election packet
 	std::string string_max_id = std::to_string(max_id) + "\n";
 	Packet election_packet = Packet(Packet::ELECTION_PACKET, 1, 1, string_max_id.c_str(), string_max_id.size());
 
 	election_packet.send_packet(outgoing_socket);
-
 }
+
 void serverComManager::close_old_connections(){
 	close(this->incoming_election_socket);
 	close(this->outgoing_election_socket);
 }
+
 /*
 ==============================================================
 				BACKUP_SERVER TO MAIN_SERVER
@@ -920,10 +908,28 @@ void serverComManager::close_old_connections(){
 */
 //SET TRANSFORMS BACKUP_SERVER INTO MAIN_SERVER
 void serverComManager::evolve_into_main() {
+	char self_hostname[256];
+    gethostname(self_hostname, sizeof(self_hostname));
+
+	access_server_list.lock();
+	{
+		this->server_list->remove_server(self_hostname);
+
+		// // Propagate delete server to all OTHER backup servers
+		// ServerNode* backup_server = server_list->get_first_server();
+		// while(backup_server != nullptr){
+		// 	int server_socket = backup_server->get_socket();
+		// 	Packet file_path_packet(Packet::DELETESERVER_PACKET, 1, 1, (self_hostname + "\n").c_str(), (self_hostname + "\n").size());
+		// 	file_path_packet.send_packet(server_socket);
+		// 	FileTransfer::send_file(local_file_path, server_socket);
+		// 	backup_server = backup_server->get_next();
+		// }
+	}
+	access_server_list.unlock();
 
 	string teste_client_hostname = this->client_list->get_first_client()->get_device1_hostname();
+	string teste_client_username = this->client_list->get_first_client()->get_username();
 	connect_to_hostname(const_cast<char*>(teste_client_hostname.c_str()));
-	
 }
 
 //=========================================================
@@ -934,15 +940,21 @@ void serverComManager::evolve_into_main() {
 	THE ADDRESS FOUND, IF IT COULDN'T FIND ANY IT EXITS W/0
 */
 void serverComManager::connect_to_hostname(char* hostname){
+	string teste_client_hostname = this->client_list->get_first_client()->get_device1_hostname();
+	string teste_client_username = this->client_list->get_first_client()->get_username();
 	struct hostent *client_host; 
 	client_host = gethostbyname(hostname);
 
 	if(client_host == NULL){
-		cout << "NAO CONSEGUI ENCONTRAR O ENDERECO \n";
+		cout << "NAO CONSEGUI ENCONTRAR O ENDERECO" << endl;
 		exit(0);
 	}
 	start_sockets();
 	connect_sockets(CLIENT_PORT, client_host);
+	this->username = teste_client_username;
+	this->hostname = teste_client_hostname;
+
+	// cout << "CONECTADO AO USER:" << this->username << endl;
 	await_command_packet();
 
 }
@@ -954,15 +966,15 @@ void serverComManager::start_sockets() {
 
     //sock_cmd used for the client to send commands like: download, upload, delete, list_server, list_server, exit, two-way communication
     if ((this->client_cmd_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-        cout << "ERROR opening cmd socket\n";
+        cout << "ERROR opening cmd socket" << endl;
     
     //sock_upload used for the client to upload files from inotify events syncs into the server
     if ((this->client_upload_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-        cout << "ERROR opening upload socket\n";
+        cout << "ERROR opening upload socket" << endl;
 
     //sock_fetch used for the client to download files from the server if synchronization needed
     if ((this->client_fetch_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-        cout << "ERROR opening fetch socket\n";
+        cout << "ERROR opening fetch socket" << endl;
 
     
 }
@@ -979,22 +991,19 @@ void serverComManager::connect_sockets(int port, hostent* client_host) {
 	bzero(&(client_addr.sin_zero), 8);  
 
     if (connect(this->client_cmd_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
-        cout << "ERROR connecting cmd socket\n";
-    else
-        cout <<"cmd socket connected\n";
+        cout << "ERROR connecting cmd socket" << endl;
+    else{}
+        // cout <<"cmd socket connected" << endl;
 
    
     if (connect(this->client_upload_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
-        cout << "ERROR connecting upload socket\n";
-    else
-        cout <<"upload socket connected\n";
+        cout << "ERROR connecting upload socket" << endl;
+    else{}
+        // cout <<"upload socket connected" << endl;
 
     if (connect(this->client_fetch_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
-        cout << "ERROR connecting fetch socket\n";
-    else
-        cout <<"fetch socket connected\n";
+        cout << "ERROR connecting fetch socket" << endl;
+    else{}
+        // cout <<"fetch socket connected" << endl;
     
 }
-
-
-
