@@ -66,7 +66,7 @@ class serverComManager
         // Constructor Method
         serverComManager(ClientList* client_list, ServerList* server_list);
         void await_command_packet();
-        void await_sync(int socket, bool* elected);
+        void await_sync(int* socket, bool* elected);
         static void heartbeat_protocol(ServerList* server_list);
         serverStatus bind_client_sockets(int server_socket, int first_comm_socket);
         void add_backup_server(int backup_server_socket, string hostname);
@@ -75,8 +75,8 @@ class serverComManager
         std::string get_username();
 
         /*functions used in backup_servers*/
-        void connect_to_hostname(char *hostname);
-
+        void connect_to_client_hostname(const char *hostname, string username);
+        void connect_to_server_hostname(const char *hostname);
         //functions used for the election in the backup_servers
         
         void start_election_sockets();
@@ -84,12 +84,15 @@ class serverComManager
         void accept_election_connection();
         void connect_election_sockets(hostent* backup_server);
         void start_ring_election(bool* wait_election);
-        void handle_election(bool* wait_election, bool* elected);
+        void handle_election(bool* wait_election, bool* elected, bool* reconnected, int* socket);
         void build_ring();
 
         //functions used for evolvin backup server
         void evolve_into_main();
         void close_old_connections();
+        void reconnect_to_clients();
+        void reconnect_to_servers();
+        void await_main_server_connection(int* socket);
         
 };
 #endif

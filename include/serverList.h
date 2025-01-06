@@ -42,41 +42,31 @@ class ServerList {
         // Constructor
         ServerList() : head(nullptr) {}
 
-        // Method to add a server to the list
+        // Method to add or update a server in the list
         void add_server(int socket, const std::string& hostname) {
+            ServerNode* temp = head;
+
+            // Search for a server with the same hostname
+            while (temp != nullptr) {
+                if (temp->get_hostname() == hostname) {
+                    // If the hostname matches, overwrite the socket
+                    temp->set_socket(socket);
+                    return;  // Exit the method after updating
+                }
+                temp = temp->get_next();  // Move to the next node
+            }
+
+            // If no matching hostname is found, add a new server node
             ServerNode* new_server = new ServerNode(socket, hostname);
             if (head == nullptr) {
                 head = new_server;  // Add as the first node
             } else {
-                ServerNode* temp = head;
+                temp = head;
                 while (temp->get_next() != nullptr) {
                     temp = temp->get_next();  // Traverse to the end of the list
                 }
                 temp->set_next(new_server);  // Link the new server at the end
             }
-        }
-
-        // Method to remove a server by its socket number
-        void remove_server(int socket) {
-            ServerNode* current = head;
-            ServerNode* prev = nullptr;
-
-            while (current != nullptr) {
-                if (current->get_socket() == socket) {
-                    // Found the server to remove
-                    if (prev == nullptr) {  // Removing the first node
-                        head = current->get_next();
-                    } else {  // Removing an intermediate or last node
-                        prev->set_next(current->get_next());
-                    }
-                    delete current;  // Free the memory
-                    return;
-                }
-                prev = current;
-                current = current->get_next();
-            }
-
-            std::cout << "SERVER NOT FOUND" << std::endl;
         }
 
         // Method to remove a server by its hostname

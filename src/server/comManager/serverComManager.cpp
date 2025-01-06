@@ -4,8 +4,10 @@ using namespace std;
 namespace fs = std::filesystem;
 #define CLIENT_PORT 1909
 #define PORT 4000
+#define BACKUP_PORT 4001
 #define ELECTION_PORT 3999
 
+std::mutex connect_hand_com;
 std::mutex access_device_list;
 std::mutex access_server_list;
 std::mutex access_heartbeat_time;
@@ -201,8 +203,8 @@ void serverComManager::upload(Packet command_packet) {
 				Packet file_path_packet(Packet::DATA_PACKET, 1, 1, (local_file_path + "\n").c_str(), (local_file_path + "\n").size());
 				file_path_packet.send_packet(server_socket);
 				FileTransfer::send_file(local_file_path, server_socket);
-				backup_server = backup_server->get_next();
 			}
+			backup_server = backup_server->get_next();
 		}
 	}
 	access_server_list.unlock();
@@ -257,8 +259,10 @@ void serverComManager::delete_server_file(Packet command_packet) {
 
 		while(backup_server != nullptr){
 			int server_socket = backup_server->get_socket();
-			Packet file_name_packet(Packet::CMD_PACKET, Command::DELETE, 1, file_path.c_str(), file_path.size());
-			file_name_packet.send_packet(server_socket);
+			if(server_socket != 0){
+				Packet file_name_packet(Packet::CMD_PACKET, Command::DELETE, 1, file_path.c_str(), file_path.size());
+				file_name_packet.send_packet(server_socket);
+			}
 			backup_server = backup_server->get_next();
 		}
 	}
@@ -614,11 +618,12 @@ void serverComManager::receive_client_list(int socket) {
 }
 
 // LOOP TO GET SYNC FUNCTIONS
-void serverComManager::await_sync(int socket, bool* elected) {
+void serverComManager::await_sync(int* socket, bool* elected) {
 	bool should_start_election = false;
 	bool wait_election = false;
+	bool reconnected = false;
 	time_t last_heartbeat = time(NULL);
-	std::thread heartbeat_timeout(election_timer, &last_heartbeat, &should_start_election, socket);
+	std::thread heartbeat_timeout(election_timer, &last_heartbeat, &should_start_election, *socket);
 	heartbeat_timeout.detach();
 
 	while(!(*elected))
@@ -632,12 +637,18 @@ void serverComManager::await_sync(int socket, bool* elected) {
 			wait_election = true;
 		}
 		if(wait_election){
-			handle_election(&wait_election, elected);
+			handle_election(&wait_election, elected, &reconnected, socket);
 		}
 		if(!wait_election)
 		{
+			if(reconnected){
+				std::thread heartbeat_timeout(election_timer, &last_heartbeat, &should_start_election, *socket);
+				heartbeat_timeout.detach();
+				reconnected = false;
+			}
+
 			// wait for only 15 seconds, timeout is important to unblock this thread
-			Packet received_packet = Packet::receive_packet(socket, 15);
+			Packet received_packet = Packet::receive_packet(*socket, 15);
 
 			if (!received_packet.is_empty()) {
 				access_heartbeat_time.lock();
@@ -659,7 +670,7 @@ void serverComManager::await_sync(int socket, bool* elected) {
 					case Packet::DATA_PACKET:
 					{
 						string file_path = strtok(received_packet.get_payload(), "\n");        
-						FileTransfer::receive_file(file_path, socket);	
+						FileTransfer::receive_file(file_path, *socket);	
 						break;
 					}
 
@@ -822,7 +833,7 @@ void serverComManager::start_ring_election(bool* wait_election) {
 }
 
 // Receive incomming election packet and execute ring logic and send outgoing packet.
-void serverComManager::handle_election(bool* wait_election, bool* elected) {
+void serverComManager::handle_election(bool* wait_election, bool* elected, bool* reconnected, int* socket) {
 	
 	this->participant = true;
 	//====================== HANDLING PACKET  ====================
@@ -858,6 +869,8 @@ void serverComManager::handle_election(bool* wait_election, bool* elected) {
 			Packet elected_leader_packet = Packet(Packet::ELECTED_PACKET, 1, 1, received_id.c_str(), received_id.size());
 			elected_leader_packet.send_packet(outgoing_socket);
 			close_old_connections();
+			await_main_server_connection(socket);
+			*reconnected = true;
 			return;
 		}
 	}
@@ -908,14 +921,29 @@ void serverComManager::evolve_into_main() {
 
 	access_server_list.lock();
 	{
-		this->server_list->remove_server(self_hostname);
-		this->server_list->display_servers();
-		this->client_list->display_clients();
+		this->server_list->remove_server(string(self_hostname));
 	}
 	access_server_list.unlock();
 
-	string teste_client_hostname = this->client_list->get_first_client()->get_device1_hostname();
-	connect_to_hostname(const_cast<char*>(teste_client_hostname.c_str()));
+	reconnect_to_clients();
+	reconnect_to_servers();
+
+	access_server_list.lock();
+	{
+		// propagate file to all backup servers (sync)
+		ServerNode* backup_server = server_list->get_first_server();
+		
+		while(backup_server != nullptr){
+			int server_socket = backup_server->get_socket();
+			if(server_socket != 0){
+				Packet delete_server_packet(Packet::DELETESERVER_PACKET, 1, 1, (string(self_hostname) + "\n").c_str(), (string(self_hostname) + "\n").size());
+				delete_server_packet.send_packet(server_socket);
+			}
+			backup_server = backup_server->get_next();
+		}
+	}
+	access_server_list.unlock();
+	return;
 }
 
 //=========================================================
@@ -925,24 +953,58 @@ void serverComManager::evolve_into_main() {
 	GIVEN A STRING HOSTNAME, IT CONNECTS THE SERVER_COM SOCKETS TO
 	THE ADDRESS FOUND, IF IT COULDN'T FIND ANY IT EXITS W/0
 */
-void serverComManager::connect_to_hostname(char* hostname){
-	string teste_client_hostname = this->client_list->get_first_client()->get_device1_hostname();
-	string teste_client_username = this->client_list->get_first_client()->get_username();
+void serverComManager::connect_to_client_hostname(const char* hostname, string username){
 	struct hostent *client_host; 
 	client_host = gethostbyname(hostname);
 
 	if(client_host == NULL){
-		cout << "NAO CONSEGUI ENCONTRAR O ENDERECO" << endl;
+		cout << "NAO CONSEGUI ENCONTRAR O ENDERECO " << hostname << endl;
 		exit(0);
 	}
-	start_sockets();
-	connect_sockets(CLIENT_PORT, client_host);
-	this->username = teste_client_username;
-	this->hostname = teste_client_hostname;
+	connect_hand_com.lock();
+	{
+		start_sockets();
+		connect_sockets(CLIENT_PORT, client_host);
+	}
+	connect_hand_com.unlock();
 
-	// cout << "CONECTADO AO USER:" << this->username << endl;
+	this->username = username;
+	this->hostname = string(hostname);
+
+	// Update client list device sockets from established connection
+	this->client_list->add_device(username, hostname, tuple<int,int,int>(
+		this->client_cmd_socket, this->client_upload_socket, this->client_fetch_socket
+	));
+
 	await_command_packet();
 }
+
+void serverComManager::connect_to_server_hostname(const char* hostname){
+	struct hostent *server_host; 
+	server_host = gethostbyname(hostname);
+	int backup_server_socket;
+
+	cout << hostname << endl;
+	if(server_host == NULL){
+		cout << "NAO CONSEGUI ENCONTRAR O ENDERECO DO BACKUP_SERVER" << endl;
+		exit(0);
+	}
+	
+    if ((backup_server_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
+        cout << "ERROR opening backup server socket" << endl;
+
+	// Reverse connection to backup server awaiting on port 4001
+	struct sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;     
+	server_addr.sin_port = htons(BACKUP_PORT);    
+	server_addr.sin_addr = *((struct in_addr *)server_host->h_addr);
+	bzero(&(server_addr.sin_zero), 8);  
+    while(connect(backup_server_socket,(struct sockaddr *) &server_addr,sizeof(server_addr)) < 0);
+
+	// Update server list backup server socket from established connection
+	this->server_list->add_server(backup_server_socket, hostname);
+}
+
 //aux functs
 /*
 	START SOCKETS: start sockets to client connection
@@ -973,16 +1035,100 @@ void serverComManager::connect_sockets(int port, hostent* client_host) {
 	client_addr.sin_addr = *((struct in_addr *)client_host->h_addr);
 	bzero(&(client_addr.sin_zero), 8);  
 
-    if (connect(this->client_cmd_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
+    while(connect(this->client_cmd_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
         cout << "ERROR connecting cmd socket" << endl;
         // cout <<"cmd socket connected" << endl;
 
-    if (connect(this->client_upload_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
+    while(connect(this->client_upload_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
         cout << "ERROR connecting upload socket" << endl;
         // cout <<"upload socket connected" << endl;
 
-    if (connect(this->client_fetch_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
+    while(connect(this->client_fetch_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
         cout << "ERROR connecting fetch socket" << endl;
         // cout <<"fetch socket connected" << endl;
     
+}
+/*
+	RECONNECT_TO_CLIENTS: given a client_list, reconnects to all of them, creating one thread for each
+*/
+void serverComManager::reconnect_to_clients(){
+	access_device_list.lock();
+	{
+		ClientNode* client = this->client_list->get_first_client();
+
+		while (client != nullptr) {
+			// Retrieve client information
+			std::string client_username = client->get_username();
+			std::string device1_hostname = client->get_device1_hostname();
+			std::string device2_hostname = client->get_device2_hostname();
+
+			// Connect to non-empty devices
+			if (!device1_hostname.empty()) {
+				thread d1([device1_hostname, client_username, this]() {
+					auto* newComManager = new serverComManager(this->client_list, this->server_list);
+					newComManager->connect_to_client_hostname(device1_hostname.c_str(), client_username);
+					delete newComManager;
+				});
+				d1.detach();
+			}
+
+			if (!device2_hostname.empty()) {
+				thread d2([device2_hostname, client_username, this]() {
+					auto* newComManager = new serverComManager(this->client_list, this->server_list);
+					newComManager->connect_to_client_hostname(device2_hostname.c_str(), client_username);
+					delete newComManager;
+				});
+				d2.detach();
+			}
+
+			client = client->get_next();
+		}
+	}
+	access_device_list.unlock();
+}
+/*
+	RECONNECT_TO_SERVERS
+*/
+void serverComManager::reconnect_to_servers(){
+	access_server_list.lock();
+	{
+		ServerNode* backup_server = server_list->get_first_server();
+		
+		while(backup_server != nullptr){
+			char* backup = const_cast<char*>(backup_server->get_hostname().c_str());
+			connect_to_server_hostname(backup);
+			backup_server = backup_server->get_next();
+		}
+	}
+	access_server_list.unlock();
+
+}
+
+// 
+void serverComManager::await_main_server_connection(int* connection_socket){
+	struct sockaddr_in serv_addr;
+	struct sockaddr_in client_address;
+	socklen_t client_len = sizeof(struct sockaddr_in);
+	int await_connection_socket;
+
+	if ((await_connection_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+		printf("ERROR opening socket\n");
+		return;
+	}
+        
+	// BIND BACKUP SOCKET
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_port = htons(BACKUP_PORT);
+	serv_addr.sin_addr.s_addr = INADDR_ANY;
+	bzero(&(serv_addr.sin_zero), 8);     
+	if (bind(await_connection_socket, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0){
+		cout << ("ERROR on binding");
+		return;
+	} 
+
+	// LISTEN ON PORT 4001 for elected main server connection
+	listen(await_connection_socket, 6);
+
+	// Update socket used for communicating with new main server
+	*connection_socket = accept(await_connection_socket,(struct sockaddr*)&client_address,&client_len);
 }

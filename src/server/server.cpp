@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
 {
 	// SERVER SOCKETS
 	int server_socket;
+	int connection_socket;
 	int first_contact_socket;
 	struct sockaddr_in client_address;
 	socklen_t client_len = sizeof(struct sockaddr_in);
@@ -145,22 +146,54 @@ int main(int argc, char *argv[])
 		server = gethostbyname(argv[1]);
 		port = atoi(argv[2]);
 		gethostname(self_hostname, sizeof(self_hostname));
-		setup_backup_server_socket(port, self_hostname, server, &server_socket);
+		setup_backup_server_socket(port, self_hostname, server, &connection_socket);
 
-		com_manager.receive_server_list(server_socket);
-		com_manager.receive_client_list(server_socket);
-		serverFileManager::receive_sync_dir_files(server_socket);
+		// Data structures and file syncs
+		com_manager.receive_server_list(connection_socket);
+		com_manager.receive_client_list(connection_socket);
+		serverFileManager::receive_sync_dir_files(connection_socket);
 
-		//Initialize sockets for the election
+		// Initialize sockets for the election
 		com_manager.start_election_sockets();
 		com_manager.bind_incoming_election_socket();
 		
-		// create listener thread
+		// Create listener thread for election connections on port 3999
         thread listener_thread(&serverComManager::accept_election_connection, &com_manager);
 		listener_thread.detach();
 
 		// Infinite loop awaiting syncronizations from main server
-		com_manager.await_sync(server_socket, &elected);
+		com_manager.await_sync(&connection_socket, &elected);
+
+		// ============================================================ // 
+		// IF LOOP WAS BROKEN, BACKUP SERVER WAS ELECTED AS MAIN SERVER //
+        // ============================================================ //
+
+		// BIND MAIN SOCKET
+		serverStatus isBinded = bind_main_server_socket(&server_socket, 4000);
+		if(isBinded != serverStatus::OK){
+			cout << to_string(isBinded);
+			return -1;
+		}
+
+		// START HEARTBEAT THREAD
+		std::thread heartbeat_thread(serverComManager::heartbeat_protocol, &server_list);
+        heartbeat_thread.detach();
+
+		// LISTEN
+		listen(server_socket, 6);
+		cout << "================================\n SERVER LISTENING ON PORT 4000\n================================\n";
+
+		while(true){
+			//pega o mutex para si, não deixando o while seguir aceitando outros clientes
+			connect_hand.lock();
+
+			//cria uma thread pra primeira conexão do cliente
+			first_contact_socket = accept(server_socket,(struct sockaddr*)&client_address,&client_len);
+			if(first_contact_socket >= 0){
+				std::thread t(main_server_connection_handler, server_socket, first_contact_socket, &client_device_list, &server_list);
+				t.detach();
+			}
+		}
 	}
 
 
