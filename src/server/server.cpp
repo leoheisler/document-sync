@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
 		com_manager.bind_incoming_election_socket();
 		
 		// create listener thread
-        thread listener_thread(&serverComManager::accept_election_connection,com_manager);
+        thread listener_thread(&serverComManager::accept_election_connection, &com_manager);
 		listener_thread.detach();
 
 		// Infinite loop awaiting syncronizations from main server

@@ -96,6 +96,25 @@ class ServerList {
             std::cout << "SERVER NOT FOUND" << std::endl;
             return nullptr;
         }
+        ServerNode* find_current_server(const std::string& hostname) const {
+            if (head == nullptr) {
+                return nullptr; // Empty list
+            }
+
+            ServerNode* current = head;
+
+            while (current != nullptr) {
+                if (current->get_hostname() == hostname) {
+                    // If it is the last one, return the first node of the list (ring connection)
+                    return (current);
+                }
+                current = current->get_next();
+            }
+
+            // If none has the host name, return null
+            std::cout << "HOSTNAME NOT FOUND" << std::endl;
+            return nullptr;
+        }
 
         ServerNode* find_next_server(const std::string& hostname) const {
             if (head == nullptr) {
@@ -115,6 +134,24 @@ class ServerList {
             // If none has the host name, return null
             std::cout << "HOSTNAME NOT FOUND" << std::endl;
             return nullptr;
+        }
+
+        // Method to get the position (ID) of a server in the list based on its hostname
+        int get_server_id(const std::string& hostname) const {
+            ServerNode* current = head;
+            int position = 0;
+
+            while (current != nullptr) {
+                if (current->get_hostname() == hostname) {
+                    return position;  // Return the position of the server
+                }
+                current = current->get_next();
+                position++;
+            }
+
+            // Server not found
+            std::cout << "HOSTNAME NOT FOUND" << std::endl;
+            return -1;
         }
 
         // Display all servers in the list (for debugging)

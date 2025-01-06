@@ -41,6 +41,8 @@ class serverComManager
         int incoming_election_socket = -1;
         //bool that says if it is participating in the election or not
         bool participant = false;
+        // int serving the id pupose in election
+        int id = -1;
 
         // Communication Methods
         void start_communications();
