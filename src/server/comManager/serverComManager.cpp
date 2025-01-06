@@ -885,7 +885,7 @@ void serverComManager::handle_election(bool* wait_election, bool* elected, bool*
 		if (this->participant) {
 			return;
 		} else {
-			max_id = payload_id; 		
+			max_id = my_id; 		
 		}
 	} else if (my_id == payload_id){
 		// This means that the server is the elected one.
