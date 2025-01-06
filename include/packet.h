@@ -127,7 +127,7 @@ class Packet {
             do {
                 bytes_received = read(socket, stream + total_bytes_received, PACKET_SIZE - total_bytes_received);
                 if (bytes_received < 0) {
-                    std::cerr << "Error: Failed to read from socket." << endl;
+                    //std::cerr << "Error: Failed to read from socket." << endl;
                     free(stream);
                     return Packet();
                 }

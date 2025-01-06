@@ -155,6 +155,7 @@ void serverComManager::await_command_packet() {
 		ack_packet.send_packet(this->client_cmd_socket);
 	}
 }
+
 /*
 =====================================================================
 					MAIN SERVER FUNCTIONS: CLIENT
@@ -196,10 +197,12 @@ void serverComManager::upload(Packet command_packet) {
 		
 		while(backup_server != nullptr){
 			int server_socket = backup_server->get_socket();
-			Packet file_path_packet(Packet::DATA_PACKET, 1, 1, (local_file_path + "\n").c_str(), (local_file_path + "\n").size());
-			file_path_packet.send_packet(server_socket);
-			FileTransfer::send_file(local_file_path, server_socket);
-			backup_server = backup_server->get_next();
+			if(server_socket != 0){
+				Packet file_path_packet(Packet::DATA_PACKET, 1, 1, (local_file_path + "\n").c_str(), (local_file_path + "\n").size());
+				file_path_packet.send_packet(server_socket);
+				FileTransfer::send_file(local_file_path, server_socket);
+				backup_server = backup_server->get_next();
+			}
 		}
 	}
 	access_server_list.unlock();
@@ -512,10 +515,10 @@ void serverComManager::heartbeat_protocol(ServerList* server_list){
 /*
 	ELECTION_TIMER: SIGNALS TO BACKUP_SERVERS TO INITIATE ELECTION WHEN MAIN SERVER IS KILLED
 */
-void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start_election,int socket){
+void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start_election, int socket){
 	time_t current_time;
 
-	while(true){
+	while(!stop_heartbeat_thread){
 		std::this_thread::sleep_for(std::chrono::seconds(6)); 
 		current_time = time(NULL);
 
@@ -536,12 +539,6 @@ void serverComManager::election_timer(time_t* last_heartbeat, bool* should_start
 			}
 		}
 		access_heartbeat_time.unlock();
-
-		// Check if the stop_heartbeat_thread flag is true (it will be set to true to stop the thread)
-		if (stop_heartbeat_thread) {
-				break;
-		}
-
 	}
 }
 
@@ -642,9 +639,7 @@ void serverComManager::await_sync(int socket, bool* elected) {
 			// wait for only 15 seconds, timeout is important to unblock this thread
 			Packet received_packet = Packet::receive_packet(socket, 15);
 
-			if (received_packet.is_empty()) {
-				std::cout << "No packet received within timeout period." << endl;
-			}else{
+			if (!received_packet.is_empty()) {
 				access_heartbeat_time.lock();
 				{
 					last_heartbeat = time(NULL);
@@ -914,21 +909,12 @@ void serverComManager::evolve_into_main() {
 	access_server_list.lock();
 	{
 		this->server_list->remove_server(self_hostname);
-
-		// // Propagate delete server to all OTHER backup servers
-		// ServerNode* backup_server = server_list->get_first_server();
-		// while(backup_server != nullptr){
-		// 	int server_socket = backup_server->get_socket();
-		// 	Packet file_path_packet(Packet::DELETESERVER_PACKET, 1, 1, (self_hostname + "\n").c_str(), (self_hostname + "\n").size());
-		// 	file_path_packet.send_packet(server_socket);
-		// 	FileTransfer::send_file(local_file_path, server_socket);
-		// 	backup_server = backup_server->get_next();
-		// }
+		this->server_list->display_servers();
+		this->client_list->display_clients();
 	}
 	access_server_list.unlock();
 
 	string teste_client_hostname = this->client_list->get_first_client()->get_device1_hostname();
-	string teste_client_username = this->client_list->get_first_client()->get_username();
 	connect_to_hostname(const_cast<char*>(teste_client_hostname.c_str()));
 }
 
@@ -956,7 +942,6 @@ void serverComManager::connect_to_hostname(char* hostname){
 
 	// cout << "CONECTADO AO USER:" << this->username << endl;
 	await_command_packet();
-
 }
 //aux functs
 /*
@@ -975,8 +960,6 @@ void serverComManager::start_sockets() {
     //sock_fetch used for the client to download files from the server if synchronization needed
     if ((this->client_fetch_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
         cout << "ERROR opening fetch socket" << endl;
-
-    
 }
 
 /*
@@ -992,18 +975,14 @@ void serverComManager::connect_sockets(int port, hostent* client_host) {
 
     if (connect(this->client_cmd_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
         cout << "ERROR connecting cmd socket" << endl;
-    else{}
         // cout <<"cmd socket connected" << endl;
 
-   
     if (connect(this->client_upload_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
         cout << "ERROR connecting upload socket" << endl;
-    else{}
         // cout <<"upload socket connected" << endl;
 
     if (connect(this->client_fetch_socket,(struct sockaddr *) &client_addr,sizeof(client_addr)) < 0) 
         cout << "ERROR connecting fetch socket" << endl;
-    else{}
         // cout <<"fetch socket connected" << endl;
     
 }

@@ -109,9 +109,9 @@ class client
                         second_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);
                         third_contact_socket = accept(listening_socket,(struct sockaddr*)&client_address,&client_len);
                         communication_manager.set_sock_cmd(first_contact_socket);
-                        cout << "cmd socket connected again" << endl;
+                        //cout << "cmd socket connected again" << endl;
                         communication_manager.set_sock_upload(second_contact_socket);
-                        cout << "upload socket connected again" << endl;
+                        //cout << "upload socket connected again" << endl;
                         communication_manager.set_sock_fetch(third_contact_socket);
                         cout << "fetch socket connected again" << endl;
                     }catch(const std::exception& e){
