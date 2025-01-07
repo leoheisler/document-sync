@@ -84,9 +84,5 @@ class clientComManager
         void set_sock_fetch(int sock_fetch);
         void start_sockets();
         void close_sockets();
-
-        void close_sockets();
-
-
 };
 #endif

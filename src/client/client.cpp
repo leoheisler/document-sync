@@ -46,25 +46,7 @@ class client
             }
         }
         /*
-            THIS FUNCTION BINDS THE LISTENING SOCKET FOR REVERSE CONNECTION
-
-        */
-        void bind_client_socket(int* listening_socket){
-            struct sockaddr_in cli_addr;
-            if ((*listening_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-                throw std::runtime_error("ERRO ABRINDO O SOCKET");
-            }
-                
-            cli_addr.sin_family = AF_INET;
-            cli_addr.sin_port = htons(PORT);
-            cli_addr.sin_addr.s_addr = INADDR_ANY;
-            bzero(&(cli_addr.sin_zero), 8);     
-            if (bind(*listening_socket, (struct sockaddr *) &cli_addr, sizeof(cli_addr)) < 0){
-                throw std::runtime_error("ERRO BINDANDO O SOCKET");
-            } 
-        }
-        /*
-            THIS FUNCTION BINDS THE CLIENT SOCKET ON PORT 1909, 
+            THIS FUNCTION BINDS THE CLIENT SOCKET ON PORT 4008, 
             ENABLING IT TO REVERSE CONNECT
         
         */
