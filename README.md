@@ -82,7 +82,6 @@ After entering the container, execute the following commands based on the agent 
 ---
 
 
-=======
 ## Copying Files from a Container to Host Using `docker cp`
 
 This method allows you to copy a file or directory from a container to your host machine.
